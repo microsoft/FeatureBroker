@@ -1,0 +1,6 @@
+[submodule "cmake/external/gtest"]
+	path = cmake/external/gtest
+	url = https://github.com/google/googletest.git
+[submodule "cmake/external/expected"]
+	path = cmake/external/expected
+	url = https://github.com/TartanLlama/expected.git

@@ -1,3 +1,24 @@
+# Introduction 
+
+Welcome to the Resonance project. The purpose of this project is to enable the utilization of machine learning models across components and platforms.
+
+# Building
+
+Let's imagine you've cloned the repo.
+
+```
+git submodule update --init --recursive
+```
+
+This will fetch the submodules.
+
+You can then set up your build environment.
+
+```
+cmake . -B build.d
+```
+
+This will construct the platform specific build environment. For example, on Windows with a properly configured Visual Studio, this will create in the directory `build.d` the solution file `Resonance.sln`.
 
 # Contributing
 
