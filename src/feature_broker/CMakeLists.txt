@@ -1,4 +1,4 @@
-set(FB_NAME feature_broker)
+set(LIB_NAME ${CORE_LIB_NAME})
 set(SRCDIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
 set(INCDIR ${CMAKE_CURRENT_SOURCE_DIR}/include/inference)
 
@@ -25,12 +25,10 @@ set (SRC
     ${SRCDIR}/input_pipe.cpp
     ${SRCDIR}/synchronous_feature_broker.cpp)
 
-set (resonance_EXTERNAL ${CMAKE_CURRENT_SOURCE_DIR}/../../cmake/external)
-
-add_library(${FB_NAME} SHARED)
-add_library(${FB_NAME}_static STATIC)
+add_library(${LIB_NAME} SHARED)
+add_library(${LIB_NAME}_static STATIC)
     
-foreach (localTarget ${FB_NAME} ${FB_NAME}_static)
+foreach (localTarget ${LIB_NAME} ${LIB_NAME}_static)
     target_sources(${localTarget} PRIVATE ${SRC})
     target_include_directories(${localTarget} PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/include
@@ -42,9 +40,9 @@ foreach (localTarget ${FB_NAME} ${FB_NAME}_static)
 endforeach(localTarget)
 
 include(GenerateExportHeader)
-generate_export_header(${FB_NAME})
+generate_export_header(${LIB_NAME})
 
-set_target_properties(${FB_NAME}_static PROPERTIES
+set_target_properties(${LIB_NAME}_static PROPERTIES
   COMPILE_FLAGS -DFEATURE_BROKER_STATIC_DEFINE)
 
 add_subdirectory(test)

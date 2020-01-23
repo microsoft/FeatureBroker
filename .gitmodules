@@ -4,3 +4,6 @@
 [submodule "cmake/external/expected"]
 	path = cmake/external/expected
 	url = https://github.com/TartanLlama/expected.git
+[submodule "cmake/external/vw"]
+	path = cmake/external/vw
+	url = https://github.com/VowpalWabbit/vowpal_wabbit.git

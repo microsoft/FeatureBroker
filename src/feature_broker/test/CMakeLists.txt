@@ -4,11 +4,10 @@ include(GoogleTest)
 
 include_directories(
         ${resonance_EXTERNAL}/gtest/googletest/include
-        $<TARGET_PROPERTY:${FB_NAME},INCLUDE_DIRECTORIES>)
+        $<TARGET_PROPERTY:${CORE_LIB_NAME},INCLUDE_DIRECTORIES>)
 
-set(FB_TEST ${FB_NAME}_test)
-set(FB_TEST_STATIC ${FB_NAME}_stest)
-set(FB_TEST_OBJ ${FB_NAME}_test_obj)
+set(FB_TEST ${LIB_NAME}_test)
+set(FB_TEST_STATIC ${LIB_NAME}_stest)
 
 set(TEST_SRC
     main.cpp
@@ -29,25 +28,25 @@ set(TEST_SRC
 add_executable(${FB_TEST_STATIC} ${TEST_SRC})
 add_executable(${FB_TEST} ${TEST_SRC})
 
-target_link_libraries(${FB_TEST_STATIC} gtest gtest_main ${FB_NAME}_static)
-target_link_libraries(${FB_TEST} gtest gtest_main ${FB_NAME})
+target_link_libraries(${FB_TEST_STATIC} gtest gtest_main ${LIB_NAME}_static)
+target_link_libraries(${FB_TEST} gtest gtest_main ${LIB_NAME})
 
 set_target_properties(${FB_TEST} PROPERTIES FOLDER "Test")
 set_target_properties(${FB_TEST_STATIC} PROPERTIES FOLDER "Test")
 
-set_target_properties(${FB_NAME}_stest PROPERTIES
+set_target_properties(${LIB_NAME}_stest PROPERTIES
   COMPILE_FLAGS -DFEATURE_BROKER_STATIC_DEFINE)
 
 if(MSVC)
     # The dynamic library test needs the DLL copied. Cribbed from answers here:
     # https://stackoverflow.com/questions/13429656/how-to-copy-contents-of-a-directory-into-build-directory-after-make-with-cmake
-    set(dllDir ${CMAKE_BINARY_DIR}/src/${FB_NAME}/$<CONFIG>)
+    set(dllDir ${CMAKE_BINARY_DIR}/src/${LIB_NAME}/$<CONFIG>)
 
-    add_custom_command(TARGET ${FB_NAME}_test PRE_BUILD
+    add_custom_command(TARGET ${LIB_NAME}_test PRE_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_directory
             ${dllDir}
-            $<TARGET_FILE_DIR:${FB_NAME}_test>)
+            $<TARGET_FILE_DIR:${LIB_NAME}_test>)
 endif(MSVC)
 
-gtest_discover_tests(${FB_NAME}_stest)
-gtest_discover_tests(${FB_NAME}_test)
+gtest_discover_tests(${LIB_NAME}_stest)
+gtest_discover_tests(${LIB_NAME}_test)
