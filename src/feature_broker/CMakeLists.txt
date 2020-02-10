@@ -39,10 +39,9 @@ foreach (localTarget ${LIB_NAME} ${LIB_NAME}_static)
         FOLDER "Library")
 endforeach(localTarget)
 
+target_compile_definitions(${LIB_NAME}_static PUBLIC FEATURE_BROKER_STATIC_DEFINE)
+
 include(GenerateExportHeader)
 generate_export_header(${LIB_NAME})
-
-set_target_properties(${LIB_NAME}_static PROPERTIES
-  COMPILE_FLAGS -DFEATURE_BROKER_STATIC_DEFINE)
 
 add_subdirectory(test)

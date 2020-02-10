@@ -14,6 +14,7 @@ set(TEST_SRC
 
     env.cpp
     error_test.cpp
+    model_test.cpp
     raw_slim.cpp
     schema_builder_test.cpp
 
@@ -35,9 +36,6 @@ endforeach(localTarget)
 
 target_link_libraries(${FB_TEST_STATIC} PRIVATE ${LIB_NAME}_static)
 target_link_libraries(${FB_TEST} PRIVATE ${LIB_NAME})
-
-set_target_properties(${FB_TEST_STATIC} PROPERTIES
-  COMPILE_FLAGS -DVW_SLIM_MODEL_STATIC_DEFINE)
 
 if(MSVC)
     # The dynamic library test needs the DLL copied. Cribbed from answers here:
