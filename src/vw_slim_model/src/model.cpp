@@ -10,11 +10,20 @@
 #include <vw_slim_model/model.hpp>
 #include <vw_slim_model/vw_error.hpp>
 
+#include "schema_entry.hpp"
+
+// There are unfortunately more than a few compiler warnings in the VW Slim headers. For the sake of being aware of
+// warnings in thi codebase without having them be lost in the flood of VW warnings, we have some targeted disabling of
+// warnings.
+#pragma warning(push)
+#pragma warning(disable : 26451)  // Arithmetic overflow warnings in hash.h.
+#pragma warning(disable : 26495)  // Uninitialized members and variables seemingly everywhere.
+#pragma warning(disable : 26812)  // Enums used throughout instad of enum class.
 #include "array_parameters.h"
 #include "example_predict_builder.h"
-#include "schema_entry.hpp"
 #include "vw_slim_predict.h"
 #include "vw_slim_return_codes.h"
+#pragma warning(pop)
 
 namespace vw_slim_model {
 
@@ -44,6 +53,7 @@ class ValueUpdater : inference::ValueUpdater {
     class Peeker : public IPeeker {
        public:
         virtual ~Peeker() = default;
+
        protected:
         const std::shared_ptr<vw_slim::example_predict_builder> m_builder;
         const std::shared_ptr<inference::Handle<T>> m_handle;
@@ -149,12 +159,9 @@ std::unique_ptr<ValueUpdater::IPeeker> ValueUpdater::CreatePeeker(priv::SchemaEn
             return std::make_unique<FloatsIndexPeeker>(entry, ex, handle);
         case priv::SchemaType::StringString:
             return std::make_unique<StringStringPeeker>(ex, handle);
-        case priv::SchemaType::StringsString:
-            return std::make_unique<StringsStringPeeker>(ex, handle);
         default:
-            // Given the private nature, this should not be possible.
-            assert(false);
-            return nullptr;
+            assert(entry.Type == priv::SchemaType::StringsString);
+            return std::make_unique<StringsStringPeeker>(ex, handle);
     }
 }
 
@@ -184,11 +191,9 @@ inference::TypeDescriptor EmplaceInputEntry(priv::SchemaEntry const& entry) noex
             return inference::TypeDescriptor::Create<inference::Tensor<float>>();
         case priv::SchemaType::StringString:
             return inference::TypeDescriptor::Create<std::string>();
-        case priv::SchemaType::StringsString:
-            return inference::TypeDescriptor::Create<inference::Tensor<std::string>>();
         default:
-            // Given the private nature, this should not be possible.
-            assert(false);
+            assert(entry.Type == priv::SchemaType::StringsString);
+            return inference::TypeDescriptor::Create<inference::Tensor<std::string>>();
     }
 }
 

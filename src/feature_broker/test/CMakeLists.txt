@@ -34,9 +34,6 @@ target_link_libraries(${FB_TEST} gtest gtest_main ${LIB_NAME})
 set_target_properties(${FB_TEST} PROPERTIES FOLDER "Test")
 set_target_properties(${FB_TEST_STATIC} PROPERTIES FOLDER "Test")
 
-set_target_properties(${LIB_NAME}_stest PROPERTIES
-  COMPILE_FLAGS -DFEATURE_BROKER_STATIC_DEFINE)
-
 if(MSVC)
     # The dynamic library test needs the DLL copied. Cribbed from answers here:
     # https://stackoverflow.com/questions/13429656/how-to-copy-contents-of-a-directory-into-build-directory-after-make-with-cmake

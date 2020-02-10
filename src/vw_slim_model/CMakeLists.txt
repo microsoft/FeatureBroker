@@ -69,8 +69,8 @@ endforeach(localTarget)
 include(GenerateExportHeader)
 generate_export_header(${LIB_NAME})
 
-set_target_properties(${LIB_NAME}_static PROPERTIES
-  COMPILE_FLAGS -DVW_SLIM_MODEL_STATIC_DEFINE)
+target_compile_definitions(${LIB_NAME}_static PUBLIC VW_SLIM_MODEL_STATIC_DEFINE)
+
 
 target_link_libraries(${LIB_NAME} PUBLIC ${CORE_LIB_NAME})
 target_link_libraries(${LIB_NAME}_static PUBLIC ${CORE_LIB_NAME}_static)
