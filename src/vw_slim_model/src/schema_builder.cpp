@@ -1,3 +1,6 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
 #include <vector>
 #include <vw_slim_model/schema_builder.hpp>
 #include <vw_slim_model/vw_error.hpp>

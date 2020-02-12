@@ -1,3 +1,6 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
 #include <inference/feature_broker.hpp>
 #include <memory>
 #include <string>

@@ -1,3 +1,6 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
 set(LIB_NAME ${CORE_LIB_NAME})
 set(SRCDIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
 set(INCDIR ${CMAKE_CURRENT_SOURCE_DIR}/include/inference)

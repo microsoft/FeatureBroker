@@ -1,3 +1,6 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
 #include <condition_variable>
 #include <inference/feature_broker.hpp>
 #include <mutex>
