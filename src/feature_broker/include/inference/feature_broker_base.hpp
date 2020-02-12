@@ -253,8 +253,8 @@ void FeatureBrokerBase::SingleValueOutputPipe<T>::Peek(T &value) {
 
 template <typename T>
 void FeatureBrokerBase::SingleValueOutputPipe<T>::Poke(T &value) const {
-    auto untypedHandle = FeatureBrokerBase::BrokerOutputPipeGeneral::_handlesForOutputs[0];
-    auto handle = std::static_pointer_cast<Handle<T>>(untypedHandle);
+    std::vector<std::shared_ptr<IHandle>>::const_iterator iter = FeatureBrokerBase::BrokerOutputPipeGeneral::_handlesForOutputs.cbegin();
+    auto handle = std::static_pointer_cast<const Handle<T>>(*iter);
     value = handle->Value();
 }
 
