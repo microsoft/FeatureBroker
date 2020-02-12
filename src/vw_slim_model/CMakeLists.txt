@@ -1,3 +1,6 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
 # Either set up the build of that library ourselves, or utilize that as defined through the CMake files.
 set(LOCAL_VWSLIM FALSE)
 

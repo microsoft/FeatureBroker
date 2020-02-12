@@ -1,3 +1,6 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
 #include <inference/synchronous_feature_broker.hpp>
 
 namespace inference {

@@ -1,3 +1,6 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
 #ifndef _WIN32
 // There appear to be some includes missing from memory.h that let it compile.
 // Also, VW uses throw within memory.h despite VW_NOEXCEPT being set for some
