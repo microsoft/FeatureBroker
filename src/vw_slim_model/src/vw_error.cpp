@@ -18,6 +18,8 @@ class VWErrorCategory final : public std::error_category {
                 return "Failure to load a VW predict object.";
             case vw_errc::invalid_actions:
                 return "The specified actions are invalid or empty.";
+            case vw_errc::predict_failure:
+                return "VW model predict failed.";
             default:
                 return "Unknown error code";
         }
@@ -29,6 +31,7 @@ class VWErrorCategory final : public std::error_category {
             case vw_errc::duplicate_input_name:
             case vw_errc::load_failure:
             case vw_errc::invalid_actions:
+            case vw_errc::predict_failure:
                 return errc;
             default:
                 return std::error_condition(c, *this);

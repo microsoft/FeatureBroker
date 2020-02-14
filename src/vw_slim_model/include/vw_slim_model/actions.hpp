@@ -20,9 +20,9 @@ class Actions {
     static rt::expected<std::shared_ptr<Actions>> Create(std::vector<T> const& actions);
     ~Actions() {}
 
-    rt::expected<std::vector<int>> GetIntActions();
-    rt::expected<std::vector<std::string>> GetStringActions();
-    rt::expected<std::vector<float>> GetFloatActions();
+    VW_SLIM_MODEL_EXPORT rt::expected<std::vector<int>> GetIntActions();
+    VW_SLIM_MODEL_EXPORT rt::expected<std::vector<std::string>> GetStringActions();
+    VW_SLIM_MODEL_EXPORT rt::expected<std::vector<float>> GetFloatActions();
 
     ActionType Type() const { return m_type; }
 

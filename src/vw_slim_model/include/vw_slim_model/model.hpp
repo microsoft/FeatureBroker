@@ -34,12 +34,13 @@ class Model : public inference::Model {
         std::map<std::string, std::shared_ptr<inference::IHandle>> const& inputToHandle,
         std::map<std::string, std::shared_ptr<inference::InputPipe>> const& outputToPipe,
         std::function<void()> outOfBandNotifier) const override;
-
+    
+    class State;
    private:
+    std::shared_ptr<State> m_state;
+
     Model(SchemaBuilder const& schemaBuilder, std::shared_ptr<void> vwPredict);
 
-    const std::shared_ptr<void> m_schema;
-    const std::shared_ptr<void> m_vw_predict;
     std::unordered_map<std::string, inference::TypeDescriptor> m_inputs;
     std::unordered_map<std::string, inference::TypeDescriptor> m_outputs;
     std::vector<std::string> m_input_names;
