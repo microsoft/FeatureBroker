@@ -3,8 +3,8 @@
 
 #include <onnxruntime_c_api.h>
 
-#include <cstdint>
 #include <cmath>
+#include <cstdint>
 #include <functional>
 #include <inference/direct_input_pipe.hpp>
 #include <inference/handle.hpp>
@@ -16,17 +16,14 @@
 
 namespace {
 
-
 #ifdef WIN32
-std::wstring Path(std::string const & name) {
+std::wstring Path(std::string const& name) {
     std::wstring wpath(name.size(), L' ');
     std::mbstowcs(&wpath[0], name.c_str(), name.size());
     return wpath;
 }
 #else
-std::string Path(std::string const & name) {
-    return name;
-}
+std::string Path(std::string const& name) { return name; }
 #endif
 
 /**
@@ -77,7 +74,10 @@ inline inference::TypeDescriptor MakeTensorType() {
     return inference::TypeDescriptor::Create<inference::Tensor<T>>();
 }
 
+#pragma warning(push)
+#pragma warning(disable : 26812)  // Enums used throughout instad of enum class.
 rt::expected<inference::TypeDescriptor> MakeType(const ONNXTensorElementDataType elementType) {
+#pragma warning(pop)
     switch (elementType) {
         case ONNXTensorElementDataType::ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT:
             return MakeTensorType<float_t>();
@@ -140,7 +140,7 @@ onnx_model::onnx_errc fetch_names_types(std::unordered_map<std::string, inferenc
                                         OrtAllocator* alloc, OrtSession* sess, TCountF& countf, TNameF& namef,
                                         TTypeF& typef) {
     const auto defaultError = onnx_model::onnx_errc::internal_library_error;
-    size_t count;
+    size_t count = {};
     auto status = countf(sess, &count);
     if (status) {
         OrtReleaseStatus(status);
@@ -152,7 +152,7 @@ onnx_model::onnx_errc fetch_names_types(std::unordered_map<std::string, inferenc
     auto typeShape_deleter = [](auto c) { OrtReleaseTensorTypeAndShapeInfo(c); };
 
     for (size_t i = 0; i < count; ++i) {
-        char* name_raw;
+        char* name_raw = nullptr;
         if (status = namef(sess, i, alloc, &name_raw)) {
             OrtReleaseStatus(status);
             return defaultError;
@@ -166,7 +166,7 @@ onnx_model::onnx_errc fetch_names_types(std::unordered_map<std::string, inferenc
         // that make them incompatible with the capturing lambdas above, somehow.
         std::shared_ptr<char> name(name_raw, name_deleter);
 
-        OrtTypeInfo* typeInfo_raw;
+        OrtTypeInfo* typeInfo_raw = nullptr;
         if (status = typef(sess, i, &typeInfo_raw)) {
             OrtReleaseStatus(status);
             return defaultError;
@@ -181,7 +181,7 @@ onnx_model::onnx_errc fetch_names_types(std::unordered_map<std::string, inferenc
         // We do not support any other type but tensors. (E.g., no maps, etc.)
         if (type != ONNXType::ONNX_TYPE_TENSOR) return onnx_model::onnx_errc::unsupported_type;
 
-        const OrtTensorTypeAndShapeInfo* typeShape;
+        const OrtTensorTypeAndShapeInfo* typeShape = nullptr;
         if (status = OrtCastTypeInfoToTensorInfo(typeInfo.get(), &typeShape)) {
             OrtReleaseStatus(status);
             return defaultError;
@@ -284,7 +284,7 @@ rt::expected<std::shared_ptr<Model>> Model::Load(std::string const& path) noexce
             auto load_path = Path(path);
             return OrtCreateSession(dEnv, load_path.c_str(), dOpt, &dSess);
         },
-                         env, session);
+        env, session);
     if (static_cast<int>(errc) != 0) return onnx_model::make_onnx_unexpected(errc);
     auto model = std::shared_ptr<Model>(new Model(env, session, errc));
     if (static_cast<int>(errc) != 0) return onnx_model::make_onnx_unexpected(errc);

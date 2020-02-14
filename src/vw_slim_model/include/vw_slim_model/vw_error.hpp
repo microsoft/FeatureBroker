@@ -5,6 +5,7 @@
 
 #include <system_error>
 #include <tl/expected.hpp>
+
 #include "vw_slim_model_export.h"
 
 namespace vw_slim_model {
@@ -13,6 +14,7 @@ enum class vw_errc : int {
     duplicate_input_name = 1,
     load_failure,
     invalid_actions,
+    predict_failure,
 };
 
 VW_SLIM_MODEL_EXPORT const std::error_category& vw_error_category() noexcept;

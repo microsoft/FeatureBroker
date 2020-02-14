@@ -10,6 +10,7 @@
 #define THROW        // So VW's memory.h doesn't fail when THROW is encountered. This seems subideal.
 #endif
 
+#include <unordered_map>
 #include <vw_slim_model/model.hpp>
 #include <vw_slim_model/vw_error.hpp>
 #include <vw_slim_model/actions.hpp>
@@ -34,24 +35,46 @@ namespace vw_slim_model {
 typedef std::vector<priv::SchemaEntry> SchemaList;
 typedef vw_slim::vw_predict<::sparse_parameters> VWModel;
 
-class ValueUpdater : inference::ValueUpdater {
+class Model::State final {
    public:
-    ValueUpdater(std::shared_ptr<void> vwPredict);
-    std::error_code UpdateOutput() override;
+    State(SchemaBuilder const& schemaBuilder, std::shared_ptr<VWModel> vwModel);
 
+    const SchemaList m_schema;
+    const std::shared_ptr<VWModel> m_model;
+
+    std::vector<size_t> m_schema_entry_idx_to_idx;
+    std::vector<size_t> m_builder_idx_to_idx;
+};
+
+Model::State::State(SchemaBuilder const& schemaBuilder, std::shared_ptr<VWModel> vwModel)
+    : m_schema(*std::static_pointer_cast<SchemaList>(schemaBuilder.m_schema)), m_model(std::move(vwModel)) {
+    std::unordered_map<std::string, size_t> entryIdxToBuilderIdx;
+    m_schema_entry_idx_to_idx.reserve(m_schema.size());
+    for (size_t i = 0; i < m_schema.size(); ++i) {
+        auto emplacement = entryIdxToBuilderIdx.emplace(m_schema[i].Namespace, entryIdxToBuilderIdx.size());
+        if (emplacement.second) m_builder_idx_to_idx.push_back(i);
+        m_schema_entry_idx_to_idx.push_back(emplacement.first->second);
+    }
+}
+
+class ValueUpdaterBase : public inference::ValueUpdater {
+   public:
     class IPeeker {
        public:
-        virtual void Peek() = 0;
         virtual ~IPeeker() = default;
+        virtual std::error_code Peek(vw_slim::example_predict_builder& builder) = 0;
 
        protected:
-        explicit IPeeker(std::shared_ptr<vw_slim::example_predict_builder> ex);
-        const std::shared_ptr<vw_slim::example_predict_builder> m_builder;
+        IPeeker() = default;
     };
 
-    std::unique_ptr<IPeeker> CreatePeeker(priv::SchemaEntry const& entry,
-                                          std::shared_ptr<vw_slim::example_predict_builder> ex,
-                                          std::shared_ptr<inference::IHandle> handle);
+    ValueUpdaterBase(std::shared_ptr<Model::State> state, std::shared_ptr<::safe_example_predict> example,
+                     std::vector<std::unique_ptr<ValueUpdaterBase::IPeeker>>&& peekers);
+    std::error_code DoPeeks();
+
+    static std::unique_ptr<IPeeker> CreatePeeker(priv::SchemaEntry const& entry,
+                                                 std::shared_ptr<vw_slim::example_predict_builder> ex,
+                                                 std::shared_ptr<inference::IHandle> handle);
 
     template <typename T>
     class Peeker : public IPeeker {
@@ -59,124 +82,169 @@ class ValueUpdater : inference::ValueUpdater {
         virtual ~Peeker() = default;
 
        protected:
-        const std::shared_ptr<vw_slim::example_predict_builder> m_builder;
         const std::shared_ptr<inference::Handle<T>> m_handle;
-        Peeker(std::shared_ptr<vw_slim::example_predict_builder> ex, std::shared_ptr<inference::IHandle> handle);
+        Peeker(std::shared_ptr<inference::IHandle> handle);
     };
 
-   private:
-    const std::shared_ptr<VWModel> m_vw_predict;
-    ::safe_example_predict m_vw_example;
-    std::vector<IPeeker> m_peekers;
+   protected:
+    const std::shared_ptr<Model::State> m_state;
+    const std::shared_ptr<::safe_example_predict> m_vw_example;
+    const std::vector<std::unique_ptr<IPeeker>> m_peekers;
+    std::vector<std::unique_ptr<vw_slim::example_predict_builder>> m_builders;
 };
 
-ValueUpdater::IPeeker::IPeeker(std::shared_ptr<vw_slim::example_predict_builder> ex) : m_builder(ex) {}
+class ValueUpdaterFloat final : public ValueUpdaterBase {
+   public:
+    ValueUpdaterFloat(std::shared_ptr<Model::State> state, std::shared_ptr<::safe_example_predict> example,
+                      std::vector<std::unique_ptr<ValueUpdaterBase::IPeeker>>&& peekers,
+                      std::shared_ptr<inference::DirectInputPipe<float>> pipe);
+    std::error_code UpdateOutput() override;
+
+   private:
+    const std::shared_ptr<inference::DirectInputPipe<float>> m_pipe;
+};
 
 template <typename T>
-ValueUpdater::Peeker<T>::Peeker(std::shared_ptr<vw_slim::example_predict_builder> ex,
-                                std::shared_ptr<inference::IHandle> handle)
-    : IPeeker(ex), m_handle(std::static_pointer_cast<inference::Handle<T>>(handle)) {}
+ValueUpdaterBase::Peeker<T>::Peeker(std::shared_ptr<inference::IHandle> handle)
+    : m_handle(std::static_pointer_cast<inference::Handle<T>>(handle)) {}
 
-class FloatIndexPeeker final : public ValueUpdater::Peeker<float> {
+class FloatIndexPeeker final : public ValueUpdaterBase::Peeker<float> {
    public:
-    void Peek() { m_builder->push_feature(m_index, m_handle->Value()); }
-    FloatIndexPeeker(priv::SchemaEntry const& entry, std::shared_ptr<vw_slim::example_predict_builder> ex,
-                     std::shared_ptr<inference::IHandle> handle)
-        : ValueUpdater::Peeker<float>(ex, handle), m_index(entry.Index) {}
+    std::error_code Peek(vw_slim::example_predict_builder& builder) {
+        builder.push_feature(m_index, m_handle->Value());
+        return {};
+    }
+    FloatIndexPeeker(priv::SchemaEntry const& entry, std::shared_ptr<inference::IHandle> handle)
+        : ValueUpdaterBase::Peeker<float>(handle), m_index(entry.Index) {}
 
    private:
     const decltype(priv::SchemaEntry::Index) m_index;
 };
 
-class FloatStringPeeker final : public ValueUpdater::Peeker<float> {
+class FloatStringPeeker final : public ValueUpdaterBase::Peeker<float> {
    public:
-    void Peek() {
+    std::error_code Peek(vw_slim::example_predict_builder& builder) {
         // Ewwww. The VW code doesn't actually modify this string at all, it just Murmur hashes it, so in principle they
         // could have put a const qualifier on the method argument, but they didn't, so, here we are. Perhaps we could
         // change their code to add const and other modifiers were possible, and remove this cast in future versions.
-        m_builder->push_feature_string(const_cast<char*>(m_index.c_str()), m_handle->Value());
+        builder.push_feature_string((char*)(m_index.c_str()), m_handle->Value());
+        return {};
     }
-    FloatStringPeeker(priv::SchemaEntry const& entry, std::shared_ptr<vw_slim::example_predict_builder> ex,
-                      std::shared_ptr<inference::IHandle> handle)
-        : ValueUpdater::Peeker<float>(ex, handle), m_index(entry.Feature) {}
+    FloatStringPeeker(priv::SchemaEntry const& entry, std::shared_ptr<inference::IHandle> handle)
+        : ValueUpdaterBase::Peeker<float>(handle), m_index(entry.Feature) {}
 
    private:
     const decltype(priv::SchemaEntry::Feature) m_index;
 };
 
-class FloatsIndexPeeker final : public ValueUpdater::Peeker<inference::Tensor<float>> {
+class FloatsIndexPeeker final : public ValueUpdaterBase::Peeker<inference::Tensor<float>> {
    public:
-    void Peek() {
+    std::error_code Peek(vw_slim::example_predict_builder& builder) {
         auto val = m_handle->Value();
         auto pdata = val.Data();
         size_t total = 1;
         for (const auto d : val.Dimensions()) total *= d;
         for (size_t i = 0; i < total; ++i) {
             // This test will also result in NaN being skipped. Is that desirable/undesirable?
-            if (pdata[i] != 0) m_builder->push_feature(i + m_index, pdata[i]);
+            if (pdata[i] != 0) builder.push_feature(i + m_index, pdata[i]);
         }
+        return {};
     }
-    FloatsIndexPeeker(priv::SchemaEntry const& entry, std::shared_ptr<vw_slim::example_predict_builder> ex,
-                      std::shared_ptr<inference::IHandle> handle)
-        : ValueUpdater::Peeker<inference::Tensor<float>>(ex, handle), m_index(entry.Index) {}
+    FloatsIndexPeeker(priv::SchemaEntry const& entry, std::shared_ptr<inference::IHandle> handle)
+        : ValueUpdaterBase::Peeker<inference::Tensor<float>>(handle), m_index(entry.Index) {}
 
    private:
     const decltype(priv::SchemaEntry::Index) m_index;
 };
 
-class StringStringPeeker final : public ValueUpdater::Peeker<std::string> {
+class StringStringPeeker final : public ValueUpdaterBase::Peeker<std::string> {
    public:
-    void Peek() {
+    std::error_code Peek(vw_slim::example_predict_builder& builder) {
         // Again eww.
-        m_builder->push_feature_string(const_cast<char*>(m_handle->Value().c_str()), 1.0f);
+        builder.push_feature_string((char*)(m_handle->Value().c_str()), 1.0f);
+        return {};
     }
-    StringStringPeeker(std::shared_ptr<vw_slim::example_predict_builder> ex, std::shared_ptr<inference::IHandle> handle)
-        : ValueUpdater::Peeker<std::string>(ex, handle) {}
+    StringStringPeeker(std::shared_ptr<inference::IHandle> handle) : ValueUpdaterBase::Peeker<std::string>(handle) {}
 };
 
-class StringsStringPeeker final : public ValueUpdater::Peeker<inference::Tensor<std::string>> {
+class StringsStringPeeker final : public ValueUpdaterBase::Peeker<inference::Tensor<std::string>> {
    public:
-    void Peek() {
+    std::error_code Peek(vw_slim::example_predict_builder& builder) {
         auto val = m_handle->Value();
         auto pdata = val.Data();
         size_t total = 1;
         for (const auto d : val.Dimensions()) total *= d;
         for (size_t i = 0; i < total; ++i) {
             // This test will also result in NaN being skipped. Is that desirable/undesirable?
-            m_builder->push_feature_string(const_cast<char*>(pdata[i].c_str()), 1.0f);
+            builder.push_feature_string((char*)(pdata[i].c_str()), 1.0f);
         }
+        return {};
     }
-    StringsStringPeeker(std::shared_ptr<vw_slim::example_predict_builder> ex,
-                        std::shared_ptr<inference::IHandle> handle)
-        : ValueUpdater::Peeker<inference::Tensor<std::string>>(ex, handle) {}
+    StringsStringPeeker(std::shared_ptr<inference::IHandle> handle)
+        : ValueUpdaterBase::Peeker<inference::Tensor<std::string>>(handle) {}
 };
 
-std::unique_ptr<ValueUpdater::IPeeker> ValueUpdater::CreatePeeker(priv::SchemaEntry const& entry,
-                                                                  std::shared_ptr<vw_slim::example_predict_builder> ex,
-                                                                  std::shared_ptr<inference::IHandle> handle) {
+std::unique_ptr<ValueUpdaterBase::IPeeker> ValueUpdaterBase::CreatePeeker(
+    priv::SchemaEntry const& entry, std::shared_ptr<vw_slim::example_predict_builder> ex,
+    std::shared_ptr<inference::IHandle> handle) {
     switch (entry.Type) {
         case priv::SchemaType::FloatIndex:
-            return std::make_unique<FloatIndexPeeker>(entry, ex, handle);
+            return std::make_unique<FloatIndexPeeker>(entry, handle);
         case priv::SchemaType::FloatString:
-            return std::make_unique<FloatStringPeeker>(entry, ex, handle);
+            return std::make_unique<FloatStringPeeker>(entry, handle);
         case priv::SchemaType::FloatsIndex:
-            return std::make_unique<FloatsIndexPeeker>(entry, ex, handle);
+            return std::make_unique<FloatsIndexPeeker>(entry, handle);
         case priv::SchemaType::StringString:
-            return std::make_unique<StringStringPeeker>(ex, handle);
+            return std::make_unique<StringStringPeeker>(handle);
         default:
             assert(entry.Type == priv::SchemaType::StringsString);
-            return std::make_unique<StringsStringPeeker>(ex, handle);
+            return std::make_unique<StringsStringPeeker>(handle);
     }
 }
 
-// ValueUpdater::Peekers ----------------------------------------
+// ValueUpdater constructors ----------------------------------------
 
-ValueUpdater::ValueUpdater(std::shared_ptr<void> vwPredict)
-    : m_vw_predict(std::static_pointer_cast<VWModel>(vwPredict)) {}
+ValueUpdaterBase::ValueUpdaterBase(std::shared_ptr<Model::State> state, std::shared_ptr<::safe_example_predict> example,
+                                   std::vector<std::unique_ptr<ValueUpdaterBase::IPeeker>>&& peekers)
+    : m_state(std::move(state)),
+      m_vw_example(std::move(example)),
+      m_peekers(std::move(peekers)),
+      m_builders(m_state->m_builder_idx_to_idx.size()) {}
 
-// ValueUpdater::Peekers ----------------------------------------
+ValueUpdaterFloat::ValueUpdaterFloat(std::shared_ptr<Model::State> state,
+                                     std::shared_ptr<::safe_example_predict> example,
+                                     std::vector<std::unique_ptr<ValueUpdaterBase::IPeeker>>&& peekers,
+                                     std::shared_ptr<inference::DirectInputPipe<float>> pipe)
+    : ValueUpdaterBase(std::move(state), std::move(example), std::move(peekers)), m_pipe(std::move(pipe)) {}
 
-std::error_code ValueUpdater::UpdateOutput() { return {}; }
+// ValueUpdater peeking and updating ----------------------------------------
+
+std::error_code ValueUpdaterBase::DoPeeks() {
+    m_vw_example->clear();
+    // Set up the new round of builders. This seems inefficient, but I see no way to reuse builders.
+    const auto& bi2ei = m_state->m_builder_idx_to_idx;
+    for (size_t i = 0; i < bi2ei.size(); ++i) {
+        const auto& entry = m_state->m_schema[bi2ei[i]];
+        m_builders[i] =
+            std::make_unique<vw_slim::example_predict_builder>(m_vw_example.get(), (char*)entry.Namespace.c_str());
+    }
+
+    const auto& ei2bi = m_state->m_schema_entry_idx_to_idx;
+    for (size_t i = 0; i < ei2bi.size(); ++i) {
+        std::error_code result = m_peekers[i]->Peek(*m_builders[ei2bi[i]]);
+        if (result) return result;
+    }
+    return {};
+}
+
+std::error_code ValueUpdaterFloat::UpdateOutput() {
+    DoPeeks();
+    float result = 0;
+    int err = m_state->m_model->predict(*m_vw_example, result);
+    if (err) return make_vw_error(vw_errc::predict_failure);
+    m_pipe->Feed(result);
+    return {};
+}
 
 rt::expected<std::shared_ptr<Model>> Model::Load(SchemaBuilder const& schemaBuilder,
                                                  std::vector<char> const& modelBytes) {
@@ -210,10 +278,8 @@ inference::TypeDescriptor EmplaceInputEntry(priv::SchemaEntry const& entry) noex
 }
 
 Model::Model(SchemaBuilder const& schemaBuilder, std::shared_ptr<void> vwPredict)
-    : m_schema(std::make_shared<SchemaList>(*std::static_pointer_cast<SchemaList>(schemaBuilder.m_schema))),
-      m_vw_predict(std::move(vwPredict)) {
-    auto& schema = *std::static_pointer_cast<SchemaList>(m_schema);
-    for (auto const& entry : schema) {
+    : m_state(std::make_shared<State>(schemaBuilder, std::static_pointer_cast<VWModel>(vwPredict))) {
+    for (auto const& entry : m_state->m_schema) {
         m_inputs.emplace(entry.InputName, EmplaceInputEntry(entry));
         m_input_names.emplace_back(entry.InputName);
     }
@@ -233,7 +299,48 @@ rt::expected<std::shared_ptr<inference::ValueUpdater>> Model::CreateValueUpdater
     std::map<std::string, std::shared_ptr<inference::IHandle>> const& inputToHandle,
     std::map<std::string, std::shared_ptr<inference::InputPipe>> const& outputToPipe,
     std::function<void()> outOfBandNotifier) const {
-    return {};
+    // One builder per namespace, possibly shared among multiple inputs.
+    std::unordered_map<std::string, std::shared_ptr<vw_slim::example_predict_builder>> builders;
+
+    std::vector<std::unique_ptr<ValueUpdaterBase::IPeeker>> peekers;
+    peekers.reserve(inputToHandle.size());
+    auto vw_example = std::make_shared<::safe_example_predict>();
+
+    // Since every input entry is listed as a requirement, every entry should in principle have a corresponding entry.
+    for (auto const& entry : m_state->m_schema) {
+        auto foundInputType = m_inputs.find(entry.InputName);
+        // The code could continue to work if we just continue for either of these, but really if either of these
+        // happens it means that whatever code is calling this is breaking the contract. All inputs are, according to
+        // this object, required.
+        if (foundInputType == m_inputs.end())
+            return inference::make_feature_unexpected(inference::feature_errc::name_not_found);
+        auto foundInputHandle = inputToHandle.find(entry.InputName);
+        if (foundInputHandle == inputToHandle.end())
+            return inference::make_feature_unexpected(inference::feature_errc::name_not_found);
+        if (foundInputType->second != foundInputHandle->second->Type())
+            return inference::make_feature_unexpected(inference::feature_errc::type_mismatch);
+
+        std::shared_ptr<vw_slim::example_predict_builder> builder;
+        auto foundBuilder = builders.find(entry.Namespace);
+        if (foundBuilder == builders.end()) {
+            builder =
+                std::make_shared<vw_slim::example_predict_builder>(vw_example.get(), (char*)entry.Namespace.c_str());
+            builders.emplace(entry.Namespace, builder);
+        } else
+            builder = foundBuilder->second;
+        auto peeker = ValueUpdaterBase::CreatePeeker(entry, builder, foundInputHandle->second);
+        peekers.push_back(std::move(peeker));
+    }
+
+    // Map the outputs.
+    auto foundOutput = outputToPipe.find("Output");
+    if (foundOutput == outputToPipe.end())
+        return inference::make_feature_unexpected(inference::feature_errc::name_not_found);
+    if (foundOutput->second->Type() != inference::TypeDescriptor::Create<float>())
+        return inference::make_feature_unexpected(inference::feature_errc::type_mismatch);
+    auto typedOutputPipe = std::static_pointer_cast<inference::DirectInputPipe<float>>(foundOutput->second);
+    outOfBandNotifier();
+    return std::make_shared<ValueUpdaterFloat>(m_state, vw_example, std::move(peekers), typedOutputPipe);
 }
 
 }  // namespace vw_slim_model
