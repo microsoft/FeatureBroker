@@ -12,6 +12,7 @@
 
 #include <vw_slim_model/model.hpp>
 #include <vw_slim_model/vw_error.hpp>
+#include <vw_slim_model/actions.hpp>
 
 #include "schema_entry.hpp"
 
@@ -179,6 +180,14 @@ std::error_code ValueUpdater::UpdateOutput() { return {}; }
 
 rt::expected<std::shared_ptr<Model>> Model::Load(SchemaBuilder const& schemaBuilder,
                                                  std::vector<char> const& modelBytes) {
+    auto model = std::make_shared<VWModel>();
+    auto code = model->load(modelBytes.data(), modelBytes.size());
+    if (code != S_VW_PREDICT_OK) return make_vw_unexpected(vw_errc::load_failure);
+    return std::shared_ptr<Model>(new Model(schemaBuilder, std::static_pointer_cast<void>(model)));
+}
+rt::expected<std::shared_ptr<Model>> Model::Load(SchemaBuilder const& schemaBuilder, Actions const& actions,
+    std::vector<char> const& modelBytes) {
+
     auto model = std::make_shared<VWModel>();
     auto code = model->load(modelBytes.data(), modelBytes.size());
     if (code != S_VW_PREDICT_OK) return make_vw_unexpected(vw_errc::load_failure);

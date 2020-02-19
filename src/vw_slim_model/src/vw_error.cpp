@@ -16,6 +16,8 @@ class VWErrorCategory final : public std::error_category {
                 return "The input name was used multiple times.";
             case vw_errc::load_failure:
                 return "Failure to load a VW predict object.";
+            case vw_errc::invalid_actions:
+                return "The specified actions are invalid or empty.";
             default:
                 return "Unknown error code";
         }
@@ -26,6 +28,7 @@ class VWErrorCategory final : public std::error_category {
         switch (errc) {
             case vw_errc::duplicate_input_name:
             case vw_errc::load_failure:
+            case vw_errc::invalid_actions:
                 return errc;
             default:
                 return std::error_condition(c, *this);

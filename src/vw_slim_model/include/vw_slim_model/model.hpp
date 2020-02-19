@@ -9,6 +9,7 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include <vw_slim_model/actions.hpp>
 #include <vw_slim_model/schema_builder.hpp>
 
 #include "vw_slim_model_export.h"
@@ -18,6 +19,10 @@ namespace vw_slim_model {
 class Model : public inference::Model {
    public:
     VW_SLIM_MODEL_EXPORT static rt::expected<std::shared_ptr<Model>> Load(SchemaBuilder const& schemaBuilder,
+                                                                          std::vector<char> const& modelBytes);
+
+    VW_SLIM_MODEL_EXPORT static rt::expected<std::shared_ptr<Model>> Load(SchemaBuilder const& schemaBuilder,
+                                                                          Actions const& actions,
                                                                           std::vector<char> const& modelBytes);
 
     VW_SLIM_MODEL_EXPORT ~Model() override;
