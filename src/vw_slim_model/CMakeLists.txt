@@ -41,12 +41,13 @@ set(INCDIR ${CMAKE_CURRENT_SOURCE_DIR}/include/vw_slim_model)
 set(PRIVATEINCDIR ${CMAKE_CURRENT_SOURCE_DIR}/private)
 
 set (SRC
+    ${INCDIR}/actions.hpp
     ${INCDIR}/model.hpp
     ${INCDIR}/schema_builder.hpp
     ${INCDIR}/vw_error.hpp
-
     ${PRIVATEINCDIR}/schema_entry.hpp
 
+    ${SRCDIR}/actions.cpp
     ${SRCDIR}/model.cpp
     ${SRCDIR}/schema_builder.cpp
     ${SRCDIR}/schema_entry.cpp
