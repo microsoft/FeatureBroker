@@ -9,12 +9,12 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
-#include <vw_slim_model/actions.hpp>
-#include <vw_slim_model/schema_builder.hpp>
+#include <vw_common/actions.hpp>
+#include <vw_common/schema_builder.hpp>
 
 #include "vw_slim_model_export.h"
 
-namespace vw_slim_model {
+namespace resonance_vw {
 
 class Model : public inference::Model {
    public:

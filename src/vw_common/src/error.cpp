@@ -2,9 +2,9 @@
 // Licensed under the MIT License.
 
 #include <string>
-#include <vw_slim_model/vw_error.hpp>
+#include <vw_common/error.hpp>
 
-namespace vw_slim_model {
+namespace resonance_vw {
 
 class VWErrorCategory final : public std::error_category {
    public:
@@ -44,4 +44,4 @@ const std::error_category& vw_error_category() noexcept {
     return errorCategory;
 }
 
-}  // namespace vw_slim_model
+}  // namespace resonance_vw

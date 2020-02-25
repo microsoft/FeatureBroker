@@ -8,15 +8,19 @@
 #include <system_error>
 #include <tl/expected.hpp>
 
-namespace vw_slim_model {
+#include "vw_common_export.h"
+
+namespace resonance_vw {
 namespace priv {
 enum class SchemaType : std::uint8_t { FloatString, FloatIndex, FloatsIndex, StringString, StringsString };
 
 class SchemaEntry {
    public:
-    SchemaEntry(SchemaEntry const& copy) noexcept;
-    SchemaEntry(std::string const& inputName, std::string const& ns, const SchemaType type, const std::size_t index);
-    SchemaEntry(std::string const& inputName, std::string const& ns, const SchemaType type, std::string const& name);
+    VW_COMMON_EXPORT SchemaEntry(SchemaEntry const& copy) noexcept;
+    VW_COMMON_EXPORT SchemaEntry(std::string const& inputName, std::string const& ns, const SchemaType type,
+                                 const std::size_t index);
+    VW_COMMON_EXPORT SchemaEntry(std::string const& inputName, std::string const& ns, const SchemaType type,
+                                 std::string const& name);
 
     const std::string InputName;
     const SchemaType Type;
@@ -25,4 +29,4 @@ class SchemaEntry {
     const std::size_t Index;
 };
 }  // namespace priv
-}  // namespace vw_slim_model
+}  // namespace resonance_vw

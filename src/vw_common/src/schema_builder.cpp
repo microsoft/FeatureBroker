@@ -2,12 +2,11 @@
 // Licensed under the MIT License.
 
 #include <vector>
-#include <vw_slim_model/schema_builder.hpp>
-#include <vw_slim_model/vw_error.hpp>
+#include <vw_common/error.hpp>
+#include <vw_common/schema_builder.hpp>
+#include <vw_common/schema_entry.hpp>
 
-#include "schema_entry.hpp"
-
-namespace vw_slim_model {
+namespace resonance_vw {
 
 typedef std::vector<priv::SchemaEntry> SchemaList;
 
@@ -51,4 +50,4 @@ SchemaBuilder::Expected SchemaBuilder::AddStringVectorFeature(std::string const&
     return {};
 }
 
-}  // namespace vw_slim_model
+}  // namespace resonance_vw

@@ -1,12 +1,11 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-#include "schema_entry.hpp"
-
 #include <cassert>
 #include <string>
+#include <vw_common/schema_entry.hpp>
 
-namespace vw_slim_model {
+namespace resonance_vw {
 namespace priv {
 
 SchemaEntry::SchemaEntry(SchemaEntry const& copy) noexcept
@@ -25,4 +24,4 @@ SchemaEntry::SchemaEntry(std::string const& inputName, std::string const& ns, co
 }
 
 }  // namespace priv
-}  // namespace vw_slim_model
+}  // namespace resonance_vw

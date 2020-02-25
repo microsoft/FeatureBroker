@@ -13,14 +13,10 @@ set(FB_TEST ${LIB_NAME}_test)
 set(FB_TEST_STATIC ${LIB_NAME}_stest)
 
 set(TEST_SRC
-    actions_test.cpp
     env.hpp
     env.cpp
-    error_test.cpp
     model_test.cpp
     raw_slim.cpp
-    schema_builder_test.cpp
-
     main.cpp)
 
 set(VWSLIM_TEST_DATA_DIR ${resonance_EXTERNAL}/vw/vowpalwabbit/slim/test/data)
