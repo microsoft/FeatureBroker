@@ -9,9 +9,9 @@
 #include <tl/expected.hpp>
 #include <unordered_set>
 
-#include "vw_slim_model_export.h"
+#include "vw_common_export.h"
 
-namespace vw_slim_model {
+namespace resonance_vw {
 /**
  * @brief Creates a structure to describe the input schema for a model.
  *
@@ -23,7 +23,7 @@ namespace vw_slim_model {
  */
 class SchemaBuilder {
    public:
-    VW_SLIM_MODEL_EXPORT SchemaBuilder();
+    VW_COMMON_EXPORT SchemaBuilder();
 
     using Expected = tl::expected<void, std::error_code>;
 
@@ -38,8 +38,8 @@ class SchemaBuilder {
      * @param ns The corresponding name of the namespace in VW.
      * @return VW_SLIM_MODEL_EXPORT AddFeature
      */
-    VW_SLIM_MODEL_EXPORT Expected AddFloatFeature(std::string const& inputName, std::string const& featureName,
-                                                  std::string const& ns = "");
+    VW_COMMON_EXPORT Expected AddFloatFeature(std::string const& inputName, std::string const& featureName,
+                                              std::string const& ns = "");
 
     /**
      * @brief Adds a scalar float feature to the schema.
@@ -52,19 +52,20 @@ class SchemaBuilder {
      * @param ns The corresponding name of the namespace in VW.
      * @return VW_SLIM_MODEL_EXPORT AddFeature
      */
-    VW_SLIM_MODEL_EXPORT Expected AddFloatFeature(std::string const& inputName, std::size_t offset,
-                                                  std::string const& ns = "");
+    VW_COMMON_EXPORT Expected AddFloatFeature(std::string const& inputName, std::size_t offset,
+                                              std::string const& ns = "");
 
-    VW_SLIM_MODEL_EXPORT Expected AddFloatVectorFeature(std::string const& inputName, std::size_t offset = 0,
-                                                        std::string const& ns = "");
+    VW_COMMON_EXPORT Expected AddFloatVectorFeature(std::string const& inputName, std::size_t offset = 0,
+                                                    std::string const& ns = "");
 
-    VW_SLIM_MODEL_EXPORT Expected AddStringFeature(std::string const& inputName, std::string const& ns = "");
+    VW_COMMON_EXPORT Expected AddStringFeature(std::string const& inputName, std::string const& ns = "");
 
-    VW_SLIM_MODEL_EXPORT Expected AddStringVectorFeature(std::string const& inputName, std::string const& ns = "");
+    VW_COMMON_EXPORT Expected AddStringVectorFeature(std::string const& inputName, std::string const& ns = "");
+
+    std::shared_ptr<void> Schema() const { return m_schema; }
 
    private:
-    friend class Model;
     std::shared_ptr<void> m_schema;
     std::unordered_set<std::string> m_input_names;
 };
-}  // namespace vw_slim_model
+}  // namespace resonance_vw

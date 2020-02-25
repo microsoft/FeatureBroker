@@ -4,12 +4,13 @@
 
 #include <gtest/gtest.h>
 
-#include <vw_slim_model/actions.hpp>
-#include <vw_slim_model/vw_error.hpp>
+#include <vw_common/actions.hpp>
+#include <vw_common/error.hpp>
 
-using namespace vw_slim_model;
-namespace vw_slim_model_test {
-TEST(VWModel, Actions) {
+using namespace resonance_vw;
+
+namespace resonance_vw_test {
+TEST(vw_common, Actions) {
     auto result = Actions::Create(std::vector<int>{1, 2, 3, 4});
     EXPECT_TRUE(result.has_value());
     EXPECT_EQ(result.value()->Type(), ActionType::Int);
@@ -32,23 +33,23 @@ TEST(VWModel, Actions) {
     EXPECT_EQ(resultStringVec.value().size(), 4);
 }
 
-TEST(VWModel, ActionsBadCase) {
+TEST(vw_common, ActionsBadCase) {
     auto result = Actions::Create(std::vector<int>{});
     EXPECT_FALSE(result.has_value());
-    EXPECT_EQ(vw_slim_model::vw_errc::invalid_actions, result.error());
+    EXPECT_EQ(vw_errc::invalid_actions, result.error());
 
     result = Actions::Create(std::vector<float>{});
     EXPECT_FALSE(result.has_value());
-    EXPECT_EQ(vw_slim_model::vw_errc::invalid_actions, result.error());
+    EXPECT_EQ(vw_errc::invalid_actions, result.error());
 
     result = Actions::Create(std::vector<std::string>{});
     EXPECT_FALSE(result.has_value());
-    EXPECT_EQ(vw_slim_model::vw_errc::invalid_actions, result.error());
+    EXPECT_EQ(vw_errc::invalid_actions, result.error());
 
     // Invalid type
     result = Actions::Create(std::vector<double>{});
     EXPECT_FALSE(result.has_value());
-    EXPECT_EQ(vw_slim_model::vw_errc::invalid_actions, result.error());
+    EXPECT_EQ(vw_errc::invalid_actions, result.error());
 }
 
-}  // namespace vw_slim_model_test
+}  // namespace resonance_vw_test

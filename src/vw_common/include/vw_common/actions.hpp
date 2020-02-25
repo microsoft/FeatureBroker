@@ -5,24 +5,31 @@
 
 #include <cstdint>
 #include <memory>
-#include <rt/rt_expected.hpp>
 #include <string>
+#include <tl/expected.hpp>
 #include <vector>
-#include <vw_slim_model/vw_error.hpp>
+#include <vw_common/error.hpp>
 
-namespace vw_slim_model {
+#include "vw_common_export.h"
+
+namespace resonance_vw {
 
 enum class ActionType : std::uint8_t { Float, String, Int, Unknown };
 
 class Actions {
    public:
+    using Expected = tl::expected<std::shared_ptr<Actions>, std::error_code>;
+    using IntExpected = tl::expected<std::vector<int>, std::error_code>;
+    using StringExpected = tl::expected<std::vector<std::string>, std::error_code>;
+    using FloatExpected = tl::expected<std::vector<float>, std::error_code>;
+
     template <typename T>
-    static rt::expected<std::shared_ptr<Actions>> Create(std::vector<T> const& actions);
+    static Expected Create(std::vector<T> const& actions);
     ~Actions() {}
 
-    VW_SLIM_MODEL_EXPORT rt::expected<std::vector<int>> GetIntActions();
-    VW_SLIM_MODEL_EXPORT rt::expected<std::vector<std::string>> GetStringActions();
-    VW_SLIM_MODEL_EXPORT rt::expected<std::vector<float>> GetFloatActions();
+    VW_COMMON_EXPORT IntExpected GetIntActions();
+    VW_COMMON_EXPORT StringExpected GetStringActions();
+    VW_COMMON_EXPORT FloatExpected GetFloatActions();
 
     ActionType Type() const { return m_type; }
 
@@ -48,11 +55,11 @@ class Actions {
     static ActionType FromType();
 };
 
-}  // namespace vw_slim_model
+}  // namespace resonance_vw
 
-namespace vw_slim_model {
+namespace resonance_vw {
 template <typename T>
-inline rt::expected<std::shared_ptr<Actions>> Actions::Create(std::vector<T> const& actions) {
+inline Actions::Expected Actions::Create(std::vector<T> const& actions) {
     if (Actions::FromType<T>() == ActionType::Unknown) return make_vw_unexpected(vw_errc::invalid_actions);
     if (actions.size() == 0) return make_vw_unexpected(vw_errc::invalid_actions);
 
@@ -82,4 +89,4 @@ inline ActionType Actions::FromType<std::string>() {
     return ActionType::String;
 }
 
-}  // namespace vw_slim_model
+}  // namespace resonance_vw

@@ -41,17 +41,8 @@ set(INCDIR ${CMAKE_CURRENT_SOURCE_DIR}/include/vw_slim_model)
 set(PRIVATEINCDIR ${CMAKE_CURRENT_SOURCE_DIR}/private)
 
 set (SRC
-    ${INCDIR}/actions.hpp
     ${INCDIR}/model.hpp
-    ${INCDIR}/schema_builder.hpp
-    ${INCDIR}/vw_error.hpp
-    ${PRIVATEINCDIR}/schema_entry.hpp
-
-    ${SRCDIR}/actions.cpp
     ${SRCDIR}/model.cpp
-    ${SRCDIR}/schema_builder.cpp
-    ${SRCDIR}/schema_entry.cpp
-    ${SRCDIR}/vw_error.cpp
 )
 
 add_library(${LIB_NAME} SHARED)
@@ -62,8 +53,7 @@ foreach (localTarget ${LIB_NAME} ${LIB_NAME}_static)
     target_include_directories(${localTarget} PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/include
         ${resonance_EXTERNAL}/expected/include
-        ${CMAKE_CURRENT_BINARY_DIR}
-        PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/private)
+        ${CMAKE_CURRENT_BINARY_DIR})
     set_target_properties(${localTarget} PROPERTIES
         LINKER_LANGUAGE CXX
         FOLDER "Library")
@@ -75,8 +65,7 @@ generate_export_header(${LIB_NAME})
 
 target_compile_definitions(${LIB_NAME}_static PUBLIC VW_SLIM_MODEL_STATIC_DEFINE)
 
-
-target_link_libraries(${LIB_NAME} PUBLIC ${CORE_LIB_NAME})
-target_link_libraries(${LIB_NAME}_static PUBLIC ${CORE_LIB_NAME}_static)
+target_link_libraries(${LIB_NAME} PUBLIC ${CORE_LIB_NAME} vw_common)
+target_link_libraries(${LIB_NAME}_static PUBLIC ${CORE_LIB_NAME}_static vw_common)
 
 add_subdirectory(test)

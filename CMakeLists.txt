@@ -41,5 +41,6 @@ add_subdirectory(src/feature_broker)
 # the specific directories we include.
 add_subdirectory(${resonance_EXTERNAL}/vw/explore)
 add_subdirectory(${resonance_EXTERNAL}/vw/vowpalwabbit/slim)
+add_subdirectory(src/vw_common)
 add_subdirectory(src/vw_slim_model)
 add_subdirectory(src/onnx_model)

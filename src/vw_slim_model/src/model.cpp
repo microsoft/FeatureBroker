@@ -11,11 +11,10 @@
 #endif
 
 #include <unordered_map>
+#include <vw_common/actions.hpp>
+#include <vw_common/schema_builder.hpp>
+#include <vw_common/schema_entry.hpp>
 #include <vw_slim_model/model.hpp>
-#include <vw_slim_model/vw_error.hpp>
-#include <vw_slim_model/actions.hpp>
-
-#include "schema_entry.hpp"
 
 // There are unfortunately more than a few compiler warnings in the VW Slim headers. For the sake of being aware of
 // warnings in thi codebase without having them be lost in the flood of VW warnings, we have some targeted disabling of
@@ -30,7 +29,7 @@
 #include "vw_slim_return_codes.h"
 #pragma warning(pop)
 
-namespace vw_slim_model {
+namespace resonance_vw {
 
 typedef std::vector<priv::SchemaEntry> SchemaList;
 typedef vw_slim::vw_predict<::sparse_parameters> VWModel;
@@ -47,7 +46,7 @@ class Model::State final {
 };
 
 Model::State::State(SchemaBuilder const& schemaBuilder, std::shared_ptr<VWModel> vwModel)
-    : m_schema(*std::static_pointer_cast<SchemaList>(schemaBuilder.m_schema)), m_model(std::move(vwModel)) {
+    : m_schema(*std::static_pointer_cast<SchemaList>(schemaBuilder.Schema())), m_model(std::move(vwModel)) {
     std::unordered_map<std::string, size_t> entryIdxToBuilderIdx;
     m_schema_entry_idx_to_idx.reserve(m_schema.size());
     for (size_t i = 0; i < m_schema.size(); ++i) {
@@ -254,8 +253,7 @@ rt::expected<std::shared_ptr<Model>> Model::Load(SchemaBuilder const& schemaBuil
     return std::shared_ptr<Model>(new Model(schemaBuilder, std::static_pointer_cast<void>(model)));
 }
 rt::expected<std::shared_ptr<Model>> Model::Load(SchemaBuilder const& schemaBuilder, Actions const& actions,
-    std::vector<char> const& modelBytes) {
-
+                                                 std::vector<char> const& modelBytes) {
     auto model = std::make_shared<VWModel>();
     auto code = model->load(modelBytes.data(), modelBytes.size());
     if (code != S_VW_PREDICT_OK) return make_vw_unexpected(vw_errc::load_failure);
@@ -343,4 +341,4 @@ rt::expected<std::shared_ptr<inference::ValueUpdater>> Model::CreateValueUpdater
     return std::make_shared<ValueUpdaterFloat>(m_state, vw_example, std::move(peekers), typedOutputPipe);
 }
 
-}  // namespace vw_slim_model
+}  // namespace resonance_vw

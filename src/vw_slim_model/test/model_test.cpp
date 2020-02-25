@@ -4,24 +4,24 @@
 #include <gtest/gtest.h>
 
 #include <inference/feature_broker.hpp>
+#include <vw_common/error.hpp>
+#include <vw_common/schema_builder.hpp>
 #include <vw_slim_model/model.hpp>
-#include <vw_slim_model/schema_builder.hpp>
-#include <vw_slim_model/vw_error.hpp>
 
 #include "env.hpp"
 
-namespace vw_slim_model_test {
+namespace resonance_vw_test {
 TEST(VWModel, Model) {
     auto model_path = test_dir_path + "slimdata/regression_data_3.model";
     auto model_data = all_bytes(model_path);
 
-    vw_slim_model::SchemaBuilder sb;
+    resonance_vw::SchemaBuilder sb;
     auto result = sb.AddFloatFeature("InputA", 0, "a");
     ASSERT_TRUE(result.has_value());
     result = sb.AddFloatFeature("InputB", 2, "b");
     ASSERT_TRUE(result.has_value());
 
-    auto model = vw_slim_model::Model::Load(sb, model_data).value_or(nullptr);
+    auto model = resonance_vw::Model::Load(sb, model_data).value_or(nullptr);
     ASSERT_NE(nullptr, model);
 
     inference::TypeDescriptor floatType = inference::TypeDescriptor::Create<float>();
@@ -33,13 +33,13 @@ TEST(VWModel, ModelUse) {
     auto model_path = test_dir_path + "slimdata/regression_data_3.model";
     auto model_data = all_bytes(model_path);
 
-    vw_slim_model::SchemaBuilder sb;
+    resonance_vw::SchemaBuilder sb;
     auto result = sb.AddFloatFeature("InputA", 0, "a");
     ASSERT_TRUE(result.has_value());
     result = sb.AddFloatFeature("InputB", 2, "b");
     ASSERT_TRUE(result.has_value());
 
-    auto model = vw_slim_model::Model::Load(sb, model_data).value_or(nullptr);
+    auto model = resonance_vw::Model::Load(sb, model_data).value_or(nullptr);
     ASSERT_NE(nullptr, model);
 
     inference::FeatureBroker fb(model);
@@ -66,4 +66,4 @@ TEST(VWModel, ModelUse) {
     ASSERT_TRUE(updateExpected.value());
     ASSERT_NEAR(0.119599, score, 1e-6);
 }
-}  // namespace vw_slim_model_test
+}  // namespace resonance_vw_test

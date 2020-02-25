@@ -17,7 +17,7 @@
 #include "vw_slim_predict.h"
 #include "vw_slim_return_codes.h"
 
-namespace vw_slim_model_test {
+namespace resonance_vw_test {
 TEST(Raw, RegressionPredict) {
     // The purpose of this code is to just exercise vw_slim in a more contained and explicit way, corresponding to one
     // of the many subtests in ut_vw.cc.
@@ -45,4 +45,4 @@ TEST(Raw, RegressionPredict) {
     // Should be about 0.804214, going by regression_data_3.pred. Give it wiggle room on the last place.
     ASSERT_NEAR(0.804214, score, 1e-6);
 }
-}  // namespace vw_slim_model_test
+}  // namespace resonance_vw_test

@@ -3,13 +3,15 @@
 
 #include <gtest/gtest.h>
 
-#include <vw_slim_model/schema_builder.hpp>
-#include <vw_slim_model/vw_error.hpp>
+#include <vw_common/error.hpp>
+#include <vw_common/schema_builder.hpp>
 
-namespace vw_slim_model_test {
+using namespace resonance_vw;
 
-TEST(VWModel, SchemaBuilder) {
-    vw_slim_model::SchemaBuilder builder;
+namespace resonance_vw_test {
+
+TEST(vw_common, SchemaBuilder) {
+    SchemaBuilder builder;
     auto result = builder.AddFloatFeature("MyInput1", 0, "MyNamespace");
     EXPECT_TRUE(result.has_value());
     // Using the same namespace is fine.
@@ -21,6 +23,6 @@ TEST(VWModel, SchemaBuilder) {
     // Using a previously used input name, however, is not fine.
     result = builder.AddFloatVectorFeature("MyInput2", 0, "AnotherNamespace");
     EXPECT_FALSE(result.has_value());
-    EXPECT_EQ(vw_slim_model::vw_errc::duplicate_input_name, result.error());
+    EXPECT_EQ(vw_errc::duplicate_input_name, result.error());
 }
-}  // namespace vw_slim_model_test
+}  // namespace resonance_vw_test
