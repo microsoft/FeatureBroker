@@ -17,7 +17,7 @@
 #include <vw_slim_model/model.hpp>
 
 // There are unfortunately more than a few compiler warnings in the VW Slim headers. For the sake of being aware of
-// warnings in thi codebase without having them be lost in the flood of VW warnings, we have some targeted disabling of
+// warnings in this codebase without having them be lost in the flood of VW warnings, we have some targeted disabling of
 // warnings.
 #pragma warning(push)
 #pragma warning(disable : 26451)  // Arithmetic overflow warnings in hash.h.
@@ -33,20 +33,25 @@ namespace resonance_vw {
 
 typedef std::vector<priv::SchemaEntry> SchemaList;
 typedef vw_slim::vw_predict<::sparse_parameters> VWModel;
+typedef ::safe_example_predict VWExample;
 
 class Model::State final {
    public:
-    State(SchemaBuilder const& schemaBuilder, std::shared_ptr<VWModel> vwModel);
+    State(SchemaBuilder const& schemaBuilder, std::shared_ptr<OutputTask> task, std::shared_ptr<VWModel> vwModel);
 
     const SchemaList m_schema;
     const std::shared_ptr<VWModel> m_model;
+    const std::shared_ptr<OutputTask> m_task;
 
     std::vector<size_t> m_schema_entry_idx_to_idx;
     std::vector<size_t> m_builder_idx_to_idx;
 };
 
-Model::State::State(SchemaBuilder const& schemaBuilder, std::shared_ptr<VWModel> vwModel)
-    : m_schema(*std::static_pointer_cast<SchemaList>(schemaBuilder.Schema())), m_model(std::move(vwModel)) {
+Model::State::State(SchemaBuilder const& schemaBuilder, std::shared_ptr<OutputTask> task,
+                    std::shared_ptr<VWModel> vwModel)
+    : m_schema(*std::static_pointer_cast<SchemaList>(schemaBuilder.Schema())),
+      m_model(std::move(vwModel)),
+      m_task(std::move(task)) {
     std::unordered_map<std::string, size_t> entryIdxToBuilderIdx;
     m_schema_entry_idx_to_idx.reserve(m_schema.size());
     for (size_t i = 0; i < m_schema.size(); ++i) {
@@ -56,7 +61,7 @@ Model::State::State(SchemaBuilder const& schemaBuilder, std::shared_ptr<VWModel>
     }
 }
 
-class ValueUpdaterBase : public inference::ValueUpdater {
+class ValueUpdater final : public inference::ValueUpdater {
    public:
     class IPeeker {
        public:
@@ -67,8 +72,9 @@ class ValueUpdaterBase : public inference::ValueUpdater {
         IPeeker() = default;
     };
 
-    ValueUpdaterBase(std::shared_ptr<Model::State> state, std::shared_ptr<::safe_example_predict> example,
-                     std::vector<std::unique_ptr<ValueUpdaterBase::IPeeker>>&& peekers);
+    ValueUpdater(std::shared_ptr<Model::State> state, std::shared_ptr<VWExample> example,
+                 std::vector<std::unique_ptr<ValueUpdater::IPeeker>>&& peekers,
+                 std::unique_ptr<OutputTask::IPoker> poker);
     std::error_code DoPeeks();
 
     static std::unique_ptr<IPeeker> CreatePeeker(priv::SchemaEntry const& entry,
@@ -85,42 +91,34 @@ class ValueUpdaterBase : public inference::ValueUpdater {
         Peeker(std::shared_ptr<inference::IHandle> handle);
     };
 
-   protected:
-    const std::shared_ptr<Model::State> m_state;
-    const std::shared_ptr<::safe_example_predict> m_vw_example;
-    const std::vector<std::unique_ptr<IPeeker>> m_peekers;
-    std::vector<std::unique_ptr<vw_slim::example_predict_builder>> m_builders;
-};
-
-class ValueUpdaterFloat final : public ValueUpdaterBase {
-   public:
-    ValueUpdaterFloat(std::shared_ptr<Model::State> state, std::shared_ptr<::safe_example_predict> example,
-                      std::vector<std::unique_ptr<ValueUpdaterBase::IPeeker>>&& peekers,
-                      std::shared_ptr<inference::DirectInputPipe<float>> pipe);
     std::error_code UpdateOutput() override;
 
-   private:
-    const std::shared_ptr<inference::DirectInputPipe<float>> m_pipe;
+   protected:
+    const std::shared_ptr<Model::State> m_state;
+    const std::shared_ptr<VWExample> m_vw_example;
+    const std::vector<std::unique_ptr<IPeeker>> m_peekers;
+    std::vector<std::unique_ptr<vw_slim::example_predict_builder>> m_builders;
+    const std::unique_ptr<OutputTask::IPoker> m_poker;
 };
 
 template <typename T>
-ValueUpdaterBase::Peeker<T>::Peeker(std::shared_ptr<inference::IHandle> handle)
+ValueUpdater::Peeker<T>::Peeker(std::shared_ptr<inference::IHandle> handle)
     : m_handle(std::static_pointer_cast<inference::Handle<T>>(handle)) {}
 
-class FloatIndexPeeker final : public ValueUpdaterBase::Peeker<float> {
+class FloatIndexPeeker final : public ValueUpdater::Peeker<float> {
    public:
     std::error_code Peek(vw_slim::example_predict_builder& builder) {
         builder.push_feature(m_index, m_handle->Value());
         return {};
     }
     FloatIndexPeeker(priv::SchemaEntry const& entry, std::shared_ptr<inference::IHandle> handle)
-        : ValueUpdaterBase::Peeker<float>(handle), m_index(entry.Index) {}
+        : ValueUpdater::Peeker<float>(handle), m_index(entry.Index) {}
 
    private:
     const decltype(priv::SchemaEntry::Index) m_index;
 };
 
-class FloatStringPeeker final : public ValueUpdaterBase::Peeker<float> {
+class FloatStringPeeker final : public ValueUpdater::Peeker<float> {
    public:
     std::error_code Peek(vw_slim::example_predict_builder& builder) {
         // Ewwww. The VW code doesn't actually modify this string at all, it just Murmur hashes it, so in principle they
@@ -130,13 +128,13 @@ class FloatStringPeeker final : public ValueUpdaterBase::Peeker<float> {
         return {};
     }
     FloatStringPeeker(priv::SchemaEntry const& entry, std::shared_ptr<inference::IHandle> handle)
-        : ValueUpdaterBase::Peeker<float>(handle), m_index(entry.Feature) {}
+        : ValueUpdater::Peeker<float>(handle), m_index(entry.Feature) {}
 
    private:
     const decltype(priv::SchemaEntry::Feature) m_index;
 };
 
-class FloatsIndexPeeker final : public ValueUpdaterBase::Peeker<inference::Tensor<float>> {
+class FloatsIndexPeeker final : public ValueUpdater::Peeker<inference::Tensor<float>> {
    public:
     std::error_code Peek(vw_slim::example_predict_builder& builder) {
         auto val = m_handle->Value();
@@ -150,23 +148,23 @@ class FloatsIndexPeeker final : public ValueUpdaterBase::Peeker<inference::Tenso
         return {};
     }
     FloatsIndexPeeker(priv::SchemaEntry const& entry, std::shared_ptr<inference::IHandle> handle)
-        : ValueUpdaterBase::Peeker<inference::Tensor<float>>(handle), m_index(entry.Index) {}
+        : ValueUpdater::Peeker<inference::Tensor<float>>(handle), m_index(entry.Index) {}
 
    private:
     const decltype(priv::SchemaEntry::Index) m_index;
 };
 
-class StringStringPeeker final : public ValueUpdaterBase::Peeker<std::string> {
+class StringStringPeeker final : public ValueUpdater::Peeker<std::string> {
    public:
     std::error_code Peek(vw_slim::example_predict_builder& builder) {
         // Again eww.
         builder.push_feature_string((char*)(m_handle->Value().c_str()), 1.0f);
         return {};
     }
-    StringStringPeeker(std::shared_ptr<inference::IHandle> handle) : ValueUpdaterBase::Peeker<std::string>(handle) {}
+    StringStringPeeker(std::shared_ptr<inference::IHandle> handle) : ValueUpdater::Peeker<std::string>(handle) {}
 };
 
-class StringsStringPeeker final : public ValueUpdaterBase::Peeker<inference::Tensor<std::string>> {
+class StringsStringPeeker final : public ValueUpdater::Peeker<inference::Tensor<std::string>> {
    public:
     std::error_code Peek(vw_slim::example_predict_builder& builder) {
         auto val = m_handle->Value();
@@ -180,12 +178,12 @@ class StringsStringPeeker final : public ValueUpdaterBase::Peeker<inference::Ten
         return {};
     }
     StringsStringPeeker(std::shared_ptr<inference::IHandle> handle)
-        : ValueUpdaterBase::Peeker<inference::Tensor<std::string>>(handle) {}
+        : ValueUpdater::Peeker<inference::Tensor<std::string>>(handle) {}
 };
 
-std::unique_ptr<ValueUpdaterBase::IPeeker> ValueUpdaterBase::CreatePeeker(
-    priv::SchemaEntry const& entry, std::shared_ptr<vw_slim::example_predict_builder> ex,
-    std::shared_ptr<inference::IHandle> handle) {
+std::unique_ptr<ValueUpdater::IPeeker> ValueUpdater::CreatePeeker(priv::SchemaEntry const& entry,
+                                                                  std::shared_ptr<vw_slim::example_predict_builder> ex,
+                                                                  std::shared_ptr<inference::IHandle> handle) {
     switch (entry.Type) {
         case priv::SchemaType::FloatIndex:
             return std::make_unique<FloatIndexPeeker>(entry, handle);
@@ -201,24 +199,16 @@ std::unique_ptr<ValueUpdaterBase::IPeeker> ValueUpdaterBase::CreatePeeker(
     }
 }
 
-// ValueUpdater constructors ----------------------------------------
-
-ValueUpdaterBase::ValueUpdaterBase(std::shared_ptr<Model::State> state, std::shared_ptr<::safe_example_predict> example,
-                                   std::vector<std::unique_ptr<ValueUpdaterBase::IPeeker>>&& peekers)
+ValueUpdater::ValueUpdater(std::shared_ptr<Model::State> state, std::shared_ptr<VWExample> example,
+                           std::vector<std::unique_ptr<ValueUpdater::IPeeker>>&& peekers,
+                           std::unique_ptr<OutputTask::IPoker> poker)
     : m_state(std::move(state)),
       m_vw_example(std::move(example)),
       m_peekers(std::move(peekers)),
-      m_builders(m_state->m_builder_idx_to_idx.size()) {}
+      m_builders(m_state->m_builder_idx_to_idx.size()),
+      m_poker(std::move(poker)) {}
 
-ValueUpdaterFloat::ValueUpdaterFloat(std::shared_ptr<Model::State> state,
-                                     std::shared_ptr<::safe_example_predict> example,
-                                     std::vector<std::unique_ptr<ValueUpdaterBase::IPeeker>>&& peekers,
-                                     std::shared_ptr<inference::DirectInputPipe<float>> pipe)
-    : ValueUpdaterBase(std::move(state), std::move(example), std::move(peekers)), m_pipe(std::move(pipe)) {}
-
-// ValueUpdater peeking and updating ----------------------------------------
-
-std::error_code ValueUpdaterBase::DoPeeks() {
+std::error_code ValueUpdater::UpdateOutput() {
     m_vw_example->clear();
     // Set up the new round of builders. This seems inefficient, but I see no way to reuse builders.
     const auto& bi2ei = m_state->m_builder_idx_to_idx;
@@ -233,31 +223,22 @@ std::error_code ValueUpdaterBase::DoPeeks() {
         std::error_code result = m_peekers[i]->Peek(*m_builders[ei2bi[i]]);
         if (result) return result;
     }
-    return {};
+    return m_poker->Poke();
 }
 
-std::error_code ValueUpdaterFloat::UpdateOutput() {
-    DoPeeks();
-    float result = 0;
-    int err = m_state->m_model->predict(*m_vw_example, result);
-    if (err) return make_vw_error(vw_errc::predict_failure);
-    m_pipe->Feed(result);
-    return {};
-}
-
-rt::expected<std::shared_ptr<Model>> Model::Load(SchemaBuilder const& schemaBuilder,
+rt::expected<std::shared_ptr<Model>> Model::Load(SchemaBuilder const& schemaBuilder, std::shared_ptr<OutputTask> task,
                                                  std::vector<char> const& modelBytes) {
     auto model = std::make_shared<VWModel>();
     auto code = model->load(modelBytes.data(), modelBytes.size());
     if (code != S_VW_PREDICT_OK) return make_vw_unexpected(vw_errc::load_failure);
-    return std::shared_ptr<Model>(new Model(schemaBuilder, std::static_pointer_cast<void>(model)));
+    return std::shared_ptr<Model>(new Model(schemaBuilder, task, std::static_pointer_cast<void>(model)));
 }
 rt::expected<std::shared_ptr<Model>> Model::Load(SchemaBuilder const& schemaBuilder, Actions const& actions,
                                                  std::vector<char> const& modelBytes) {
     auto model = std::make_shared<VWModel>();
     auto code = model->load(modelBytes.data(), modelBytes.size());
     if (code != S_VW_PREDICT_OK) return make_vw_unexpected(vw_errc::load_failure);
-    return std::shared_ptr<Model>(new Model(schemaBuilder, std::static_pointer_cast<void>(model)));
+    return std::shared_ptr<Model>(new Model(schemaBuilder, nullptr, std::static_pointer_cast<void>(model)));
 }
 
 inference::TypeDescriptor EmplaceInputEntry(priv::SchemaEntry const& entry) noexcept {
@@ -275,21 +256,21 @@ inference::TypeDescriptor EmplaceInputEntry(priv::SchemaEntry const& entry) noex
     }
 }
 
-Model::Model(SchemaBuilder const& schemaBuilder, std::shared_ptr<void> vwPredict)
-    : m_state(std::make_shared<State>(schemaBuilder, std::static_pointer_cast<VWModel>(vwPredict))) {
+Model::Model(SchemaBuilder const& schemaBuilder, std::shared_ptr<OutputTask> task, std::shared_ptr<void> vwPredict)
+    : m_state(std::make_shared<State>(schemaBuilder, task, std::static_pointer_cast<VWModel>(vwPredict))) {
     for (auto const& entry : m_state->m_schema) {
         m_inputs.emplace(entry.InputName, EmplaceInputEntry(entry));
         m_input_names.emplace_back(entry.InputName);
     }
-    // For the sake of right now suppose we just have a single float output named "Output".
-    m_outputs.emplace("Output", inference::TypeDescriptor::Create<float>());
 }
 
 Model::~Model() {}
 
 std::unordered_map<std::string, inference::TypeDescriptor> const& Model::Inputs() const { return m_inputs; }
 
-std::unordered_map<std::string, inference::TypeDescriptor> const& Model::Outputs() const { return m_outputs; }
+std::unordered_map<std::string, inference::TypeDescriptor> const& Model::Outputs() const {
+    return m_state->m_task->Outputs();
+}
 
 std::vector<std::string> Model::GetRequirements(std::string const& outputName) const { return m_input_names; }
 
@@ -300,7 +281,7 @@ rt::expected<std::shared_ptr<inference::ValueUpdater>> Model::CreateValueUpdater
     // One builder per namespace, possibly shared among multiple inputs.
     std::unordered_map<std::string, std::shared_ptr<vw_slim::example_predict_builder>> builders;
 
-    std::vector<std::unique_ptr<ValueUpdaterBase::IPeeker>> peekers;
+    std::vector<std::unique_ptr<ValueUpdater::IPeeker>> peekers;
     peekers.reserve(inputToHandle.size());
     auto vw_example = std::make_shared<::safe_example_predict>();
 
@@ -326,7 +307,7 @@ rt::expected<std::shared_ptr<inference::ValueUpdater>> Model::CreateValueUpdater
             builders.emplace(entry.Namespace, builder);
         } else
             builder = foundBuilder->second;
-        auto peeker = ValueUpdaterBase::CreatePeeker(entry, builder, foundInputHandle->second);
+        auto peeker = ValueUpdater::CreatePeeker(entry, builder, foundInputHandle->second);
         peekers.push_back(std::move(peeker));
     }
 
@@ -336,9 +317,12 @@ rt::expected<std::shared_ptr<inference::ValueUpdater>> Model::CreateValueUpdater
         return inference::make_feature_unexpected(inference::feature_errc::name_not_found);
     if (foundOutput->second->Type() != inference::TypeDescriptor::Create<float>())
         return inference::make_feature_unexpected(inference::feature_errc::type_mismatch);
-    auto typedOutputPipe = std::static_pointer_cast<inference::DirectInputPipe<float>>(foundOutput->second);
+    //auto typedOutputPipe = std::static_pointer_cast<inference::DirectInputPipe<float>>(foundOutput->second);
+    auto pokerExpected = m_state->m_task->CreatePoker(m_state->m_model, vw_example, outputToPipe);
+    if (!pokerExpected) return tl::make_unexpected(pokerExpected.error());
+    std::unique_ptr<OutputTask::IPoker> poker(pokerExpected.value());
     outOfBandNotifier();
-    return std::make_shared<ValueUpdaterFloat>(m_state, vw_example, std::move(peekers), typedOutputPipe);
+    return std::make_shared<ValueUpdater>(m_state, vw_example, std::move(peekers), std::move(poker));
 }
 
 }  // namespace resonance_vw

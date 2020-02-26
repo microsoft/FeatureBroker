@@ -43,6 +43,8 @@ set(PRIVATEINCDIR ${CMAKE_CURRENT_SOURCE_DIR}/private)
 set (SRC
     ${INCDIR}/model.hpp
     ${SRCDIR}/model.cpp
+    ${INCDIR}/output_task.hpp
+    ${SRCDIR}/output_task.cpp
 )
 
 add_library(${LIB_NAME} SHARED)

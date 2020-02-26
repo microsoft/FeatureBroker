@@ -8,9 +8,11 @@
 #include <vw_common/schema_builder.hpp>
 #include <vw_slim_model/model.hpp>
 
+#include "data.h"
 #include "env.hpp"
 
 namespace resonance_vw_test {
+
 TEST(VWModel, Model) {
     auto model_path = test_dir_path + "slimdata/regression_data_3.model";
     auto model_data = all_bytes(model_path);
@@ -21,7 +23,8 @@ TEST(VWModel, Model) {
     result = sb.AddFloatFeature("InputB", 2, "b");
     ASSERT_TRUE(result.has_value());
 
-    auto model = resonance_vw::Model::Load(sb, model_data).value_or(nullptr);
+    auto task = resonance_vw::OutputTask::MakeRegression("Output");
+    auto model = resonance_vw::Model::Load(sb, task, model_data).value_or(nullptr);
     ASSERT_NE(nullptr, model);
 
     inference::TypeDescriptor floatType = inference::TypeDescriptor::Create<float>();
@@ -39,7 +42,8 @@ TEST(VWModel, ModelUse) {
     result = sb.AddFloatFeature("InputB", 2, "b");
     ASSERT_TRUE(result.has_value());
 
-    auto model = resonance_vw::Model::Load(sb, model_data).value_or(nullptr);
+    auto task = resonance_vw::OutputTask::MakeRegression("Output");
+    auto model = resonance_vw::Model::Load(sb, task, model_data).value_or(nullptr);
     ASSERT_NE(nullptr, model);
 
     inference::FeatureBroker fb(model);

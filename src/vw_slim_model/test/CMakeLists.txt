@@ -7,6 +7,7 @@ include(GoogleTest)
 
 include_directories(
         ${resonance_EXTERNAL}/gtest/googletest/include
+        ${resonance_EXTERNAL}/vw/vowpalwabbit/slim/test
         $<TARGET_PROPERTY:${CORE_LIB_NAME},INCLUDE_DIRECTORIES>)
 
 set(FB_TEST ${LIB_NAME}_test)
