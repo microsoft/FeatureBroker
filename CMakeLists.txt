@@ -44,3 +44,6 @@ add_subdirectory(${resonance_EXTERNAL}/vw/vowpalwabbit/slim)
 add_subdirectory(src/vw_common)
 add_subdirectory(src/vw_slim_model)
 add_subdirectory(src/onnx_model)
+
+# Requires CppRest SDK to be installed, please see remote_model/README.md
+#add_subdirectory(src/vw_remote_model)
