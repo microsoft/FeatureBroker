@@ -31,6 +31,13 @@ class OutputTask::IPokerImpl : public IPoker {
 OutputTask::IPokerImpl::IPokerImpl(std::shared_ptr<void> vwModel, std::shared_ptr<void> vwExample)
     : m_model(std::static_pointer_cast<VWModel>(vwModel)), m_example(std::static_pointer_cast<VWExample>(vwExample)) {}
 
+OutputTask::IPoker::IPoker() {}
+OutputTask::IPoker::~IPoker() {}
+std::error_code OutputTask::IPoker::Poke() { return {}; }
+
+OutputTask::OutputTask() {}
+OutputTask::~OutputTask() {}
+
 class OutputTask::Regression final : public OutputTask {
    public:
     explicit Regression(std::string outputName) : m_outputName(outputName) {
@@ -64,7 +71,7 @@ class OutputTask::Regression final : public OutputTask {
 
     tl::expected<OutputTask::IPoker*, std::error_code> CreatePoker(
         std::shared_ptr<void> vwModel, std::shared_ptr<void> vwExample,
-        std::map<std::string, std::shared_ptr<inference::InputPipe>> const& outputToPipe) {
+        std::map<std::string, std::shared_ptr<inference::InputPipe>> const& outputToPipe) const override {
         auto found = outputToPipe.find(m_outputName);
         // Just not requesting the output is not an error condition in itself.
         if (found == outputToPipe.end()) return new OutputTask::IPoker();
@@ -75,12 +82,49 @@ class OutputTask::Regression final : public OutputTask {
     }
 };
 
-OutputTask::IPoker::IPoker() {}
-OutputTask::IPoker::~IPoker() {}
-std::error_code OutputTask::IPoker::Poke() { return {}; }
+class OutputTask::Recommendation final : public OutputTask {
+   public:
+    explicit Recommendation(std::string outputName) : m_outputName(outputName) {
+        m_outputs.emplace(outputName, inference::TypeDescriptor::Create<float>());
+    }
 
-OutputTask::OutputTask() {}
-OutputTask::~OutputTask() {}
+   private:
+    const std::string m_outputName;
+    std::unordered_map<std::string, inference::TypeDescriptor> m_outputs;
+
+    class Poker final : public IPokerImpl {
+       public:
+        Poker(std::shared_ptr<void> vwModel, std::shared_ptr<void> vwExample,
+              std::shared_ptr<inference::DirectInputPipe<float>> pipe)
+            : IPokerImpl(vwModel, vwExample), m_pipe(pipe) {}
+        ~Poker() = default;
+
+        std::error_code Poke() override {
+            float result = 0;
+            int err = m_model->predict(*m_example, result);
+            if (err) return make_vw_error(vw_errc::predict_failure);
+            m_pipe->Feed(result);
+            return {};
+        }
+
+       private:
+        const std::shared_ptr<inference::DirectInputPipe<float>> m_pipe;
+    };
+
+    std::unordered_map<std::string, inference::TypeDescriptor> const& Outputs() const { return m_outputs; }
+
+    tl::expected<OutputTask::IPoker*, std::error_code> CreatePoker(
+        std::shared_ptr<void> vwModel, std::shared_ptr<void> vwExample,
+        std::map<std::string, std::shared_ptr<inference::InputPipe>> const& outputToPipe) const override {
+        auto found = outputToPipe.find(m_outputName);
+        // Just not requesting the output is not an error condition in itself.
+        if (found == outputToPipe.end()) return new OutputTask::IPoker();
+        if (found->second->Type() != inference::TypeDescriptor::Create<float>())
+            return inference::make_feature_unexpected(inference::feature_errc::type_mismatch);
+        return new Poker(vwModel, vwExample,
+                         std::static_pointer_cast<inference::DirectInputPipe<float>>(found->second));
+    }
+};
 
 std::shared_ptr<OutputTask> OutputTask::MakeRegression(std::string outputName) {
     return std::shared_ptr<OutputTask>(new OutputTask::Regression(outputName));
