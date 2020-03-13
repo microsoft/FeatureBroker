@@ -154,6 +154,20 @@ class FloatsIndexPeeker final : public ValueUpdater::Peeker<inference::Tensor<fl
     const decltype(priv::SchemaEntry::Index) m_index;
 };
 
+class IntIndexPeeker final : public ValueUpdater::Peeker<int> {
+   public:
+    std::error_code Peek(vw_slim::example_predict_builder& builder) {
+        int val = m_handle->Value();
+        builder.push_feature(m_index + val, 1.f);
+        return {};
+    }
+    IntIndexPeeker(priv::SchemaEntry const& entry, std::shared_ptr<inference::IHandle> handle)
+        : ValueUpdater::Peeker<int>(handle), m_index(entry.Index) {}
+
+   private:
+    const decltype(priv::SchemaEntry::Index) m_index;
+};
+
 class StringStringPeeker final : public ValueUpdater::Peeker<std::string> {
    public:
     std::error_code Peek(vw_slim::example_predict_builder& builder) {
@@ -191,6 +205,8 @@ std::unique_ptr<ValueUpdater::IPeeker> ValueUpdater::CreatePeeker(priv::SchemaEn
             return std::make_unique<FloatStringPeeker>(entry, handle);
         case priv::SchemaType::FloatsIndex:
             return std::make_unique<FloatsIndexPeeker>(entry, handle);
+        case priv::SchemaType::IntIndex:
+            return std::make_unique<IntIndexPeeker>(entry, handle);
         case priv::SchemaType::StringString:
             return std::make_unique<StringStringPeeker>(handle);
         default:
@@ -226,21 +242,12 @@ std::error_code ValueUpdater::UpdateOutput() {
     return m_poker->Poke();
 }
 
-rt::expected<std::shared_ptr<Model>> Model::Load(SchemaBuilder const& schemaBuilder, std::shared_ptr<OutputTask> task,
-                                                 std::vector<char> const& modelBytes) {
+rt::expected<std::shared_ptr<Model>> Model::Load(SchemaBuilder const& schemaBuilder, std::shared_ptr<OutputTask> task, const void* modelData, size_t modelSize) {
     auto model = std::make_shared<VWModel>();
-    auto code = model->load(modelBytes.data(), modelBytes.size());
+    auto code = model->load(reinterpret_cast<const char*>(modelData), modelSize);
     if (code != S_VW_PREDICT_OK) return make_vw_unexpected(vw_errc::load_failure);
     return std::shared_ptr<Model>(new Model(schemaBuilder, task, std::static_pointer_cast<void>(model)));
 }
-rt::expected<std::shared_ptr<Model>> Model::Load(SchemaBuilder const& schemaBuilder, Actions const& actions,
-                                                 std::vector<char> const& modelBytes) {
-    auto model = std::make_shared<VWModel>();
-    auto code = model->load(modelBytes.data(), modelBytes.size());
-    if (code != S_VW_PREDICT_OK) return make_vw_unexpected(vw_errc::load_failure);
-    return std::shared_ptr<Model>(new Model(schemaBuilder, nullptr, std::static_pointer_cast<void>(model)));
-}
-
 inference::TypeDescriptor EmplaceInputEntry(priv::SchemaEntry const& entry) noexcept {
     switch (entry.Type) {
         case priv::SchemaType::FloatIndex:
@@ -248,6 +255,8 @@ inference::TypeDescriptor EmplaceInputEntry(priv::SchemaEntry const& entry) noex
             return inference::TypeDescriptor::Create<float>();
         case priv::SchemaType::FloatsIndex:
             return inference::TypeDescriptor::Create<inference::Tensor<float>>();
+        case priv::SchemaType::IntIndex:
+            return inference::TypeDescriptor::Create<int>();
         case priv::SchemaType::StringString:
             return inference::TypeDescriptor::Create<std::string>();
         default:
@@ -311,13 +320,7 @@ rt::expected<std::shared_ptr<inference::ValueUpdater>> Model::CreateValueUpdater
         peekers.push_back(std::move(peeker));
     }
 
-    // Map the outputs.
-    auto foundOutput = outputToPipe.find("Output");
-    if (foundOutput == outputToPipe.end())
-        return inference::make_feature_unexpected(inference::feature_errc::name_not_found);
-    if (foundOutput->second->Type() != inference::TypeDescriptor::Create<float>())
-        return inference::make_feature_unexpected(inference::feature_errc::type_mismatch);
-    //auto typedOutputPipe = std::static_pointer_cast<inference::DirectInputPipe<float>>(foundOutput->second);
+    // Map the outputs through the poker.
     auto pokerExpected = m_state->m_task->CreatePoker(m_state->m_model, vw_example, outputToPipe);
     if (!pokerExpected) return tl::make_unexpected(pokerExpected.error());
     std::unique_ptr<OutputTask::IPoker> poker(pokerExpected.value());

@@ -19,7 +19,7 @@
 #include "vw_slim_predict.h"
 #include "vw_slim_return_codes.h"
 
-namespace raw_models {
+namespace {
 #include "data.h"
 }
 
@@ -62,8 +62,8 @@ void sets(::safe_example_predict& ex, int call_type, int modality, int network_t
 TEST(Raw, SkypeJbPredict) {
     vw_slim::vw_predict<::sparse_parameters> vw;
 
-    auto code = vw.load(reinterpret_cast<const char*>(raw_models::cb_data_epsilon_0_skype_jb_model),
-                        sizeof(raw_models::cb_data_epsilon_0_skype_jb_model));
+    auto code = vw.load(reinterpret_cast<const char*>(::cb_data_epsilon_0_skype_jb_model),
+                        sizeof(::cb_data_epsilon_0_skype_jb_model));
 
     ASSERT_EQ(S_VW_PREDICT_OK, code);
 

@@ -27,9 +27,9 @@ class Actions {
     static Expected Create(std::vector<T> const& actions);
     ~Actions() {}
 
-    VW_COMMON_EXPORT IntExpected GetIntActions();
-    VW_COMMON_EXPORT StringExpected GetStringActions();
-    VW_COMMON_EXPORT FloatExpected GetFloatActions();
+    VW_COMMON_EXPORT IntExpected GetIntActions() const;
+    VW_COMMON_EXPORT StringExpected GetStringActions() const;
+    VW_COMMON_EXPORT FloatExpected GetFloatActions() const;
 
     ActionType Type() const { return m_type; }
 
@@ -55,9 +55,6 @@ class Actions {
     static ActionType FromType();
 };
 
-}  // namespace resonance_vw
-
-namespace resonance_vw {
 template <typename T>
 inline Actions::Expected Actions::Create(std::vector<T> const& actions) {
     if (Actions::FromType<T>() == ActionType::Unknown) return make_vw_unexpected(vw_errc::invalid_actions);

@@ -58,6 +58,9 @@ class SchemaBuilder {
     VW_COMMON_EXPORT Expected AddFloatVectorFeature(std::string const& inputName, std::size_t offset = 0,
                                                     std::string const& ns = "");
 
+    VW_COMMON_EXPORT Expected AddIntFeature(std::string const& inputName, std::size_t offset,
+                                            std::string const& ns = "");
+
     VW_COMMON_EXPORT Expected AddStringFeature(std::string const& inputName, std::string const& ns = "");
 
     VW_COMMON_EXPORT Expected AddStringVectorFeature(std::string const& inputName, std::string const& ns = "");

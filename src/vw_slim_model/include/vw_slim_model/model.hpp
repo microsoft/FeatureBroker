@@ -21,11 +21,7 @@ class Model : public inference::Model {
    public:
     VW_SLIM_MODEL_EXPORT static rt::expected<std::shared_ptr<Model>> Load(SchemaBuilder const& schemaBuilder,
                                                                           std::shared_ptr<OutputTask> task,
-                                                                          std::vector<char> const& modelBytes);
-
-    VW_SLIM_MODEL_EXPORT static rt::expected<std::shared_ptr<Model>> Load(SchemaBuilder const& schemaBuilder,
-                                                                          Actions const& actions,
-                                                                          std::vector<char> const& modelBytes);
+                                                                          const void* modelData, size_t modelSize);
 
     VW_SLIM_MODEL_EXPORT ~Model() override;
     VW_SLIM_MODEL_EXPORT std::unordered_map<std::string, inference::TypeDescriptor> const& Inputs() const override;

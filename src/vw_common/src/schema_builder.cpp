@@ -36,6 +36,14 @@ SchemaBuilder::Expected SchemaBuilder::AddFloatVectorFeature(std::string const& 
     return {};
 }
 
+VW_COMMON_EXPORT SchemaBuilder::Expected SchemaBuilder::AddIntFeature(std::string const& inputName, std::size_t offset,
+                                                                      std::string const& ns) {
+    if (!m_input_names.emplace(inputName).second) return make_vw_unexpected(vw_errc::duplicate_input_name);
+    auto& schema = *std::static_pointer_cast<SchemaList>(m_schema);
+    schema.push_back(priv::SchemaEntry(inputName, ns, priv::SchemaType::IntIndex, offset));
+    return {};
+}
+
 SchemaBuilder::Expected SchemaBuilder::AddStringFeature(std::string const& inputName, std::string const& ns) {
     if (!m_input_names.emplace(inputName).second) return make_vw_unexpected(vw_errc::duplicate_input_name);
     auto& schema = *std::static_pointer_cast<SchemaList>(m_schema);

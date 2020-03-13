@@ -12,7 +12,8 @@ template <typename T>
 class Tensor final {
    public:
     Tensor() = default;
-    Tensor(std::shared_ptr<T> ptr, std::vector<size_t> dimensions) : m_data(std::move(ptr)), m_dims(dimensions) {}
+    Tensor(std::shared_ptr<T> ptr, std::vector<size_t> const& dimensions)
+        : m_data(std::move(ptr)), m_dims(dimensions) {}
     Tensor(const Tensor<T>& other) : m_data(other.m_data), m_dims(other.m_dims) {}
     ~Tensor() = default;
 

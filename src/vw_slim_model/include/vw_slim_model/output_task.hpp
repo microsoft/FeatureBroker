@@ -1,3 +1,6 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
 #pragma once
 
 #include <inference/input_pipe.hpp>
@@ -18,10 +21,10 @@ namespace resonance_vw {
  */
 class OutputTask {
    public:
-    VW_SLIM_MODEL_EXPORT static std::shared_ptr<OutputTask> MakeRegression(std::string outputName = "Output");
-    VW_SLIM_MODEL_EXPORT static std::shared_ptr<OutputTask> MakeRecommendation(
-        std::shared_ptr<Actions> actions, std::string actionName = "Action", std::string actionsName = "Actions",
-        std::string actionsIndicesName = "ActionsIndices", std::string probabilitiesName = "ActionsProbabilities");
+    VW_SLIM_MODEL_EXPORT static std::shared_ptr<OutputTask> MakeRegression();
+
+    VW_SLIM_MODEL_EXPORT static tl::expected<std::shared_ptr<OutputTask>, std::error_code> MakeRecommendation(
+        std::shared_ptr<Actions> actions, std::string const& experimentId, std::string const& classNamesapce);
 
    private:
     OutputTask();
@@ -36,7 +39,6 @@ class OutputTask {
 
     class IPokerImpl;
 
-    virtual std::unordered_map<std::string, inference::TypeDescriptor> const& Inputs() const = 0;
     virtual std::unordered_map<std::string, inference::TypeDescriptor> const& Outputs() const = 0;
     virtual tl::expected<OutputTask::IPoker*, std::error_code> CreatePoker(
         std::shared_ptr<void> vwModel, std::shared_ptr<void> vwExample,

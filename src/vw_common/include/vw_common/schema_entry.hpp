@@ -12,7 +12,7 @@
 
 namespace resonance_vw {
 namespace priv {
-enum class SchemaType : std::uint8_t { FloatString, FloatIndex, FloatsIndex, StringString, StringsString };
+enum class SchemaType : std::uint8_t { FloatString, FloatIndex, FloatsIndex, IntIndex, StringString, StringsString };
 
 class SchemaEntry {
    public:
