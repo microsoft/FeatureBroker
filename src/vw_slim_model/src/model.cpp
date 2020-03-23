@@ -78,7 +78,6 @@ class ValueUpdater final : public inference::ValueUpdater {
     std::error_code DoPeeks();
 
     static std::unique_ptr<IPeeker> CreatePeeker(priv::SchemaEntry const& entry,
-                                                 std::shared_ptr<vw_slim::example_predict_builder> ex,
                                                  std::shared_ptr<inference::IHandle> handle);
 
     template <typename T>
@@ -196,7 +195,6 @@ class StringsStringPeeker final : public ValueUpdater::Peeker<inference::Tensor<
 };
 
 std::unique_ptr<ValueUpdater::IPeeker> ValueUpdater::CreatePeeker(priv::SchemaEntry const& entry,
-                                                                  std::shared_ptr<vw_slim::example_predict_builder> ex,
                                                                   std::shared_ptr<inference::IHandle> handle) {
     switch (entry.Type) {
         case priv::SchemaType::FloatIndex:
@@ -288,8 +286,6 @@ rt::expected<std::shared_ptr<inference::ValueUpdater>> Model::CreateValueUpdater
     std::map<std::string, std::shared_ptr<inference::InputPipe>> const& outputToPipe,
     std::function<void()> outOfBandNotifier) const {
     // One builder per namespace, possibly shared among multiple inputs.
-    std::unordered_map<std::string, std::shared_ptr<vw_slim::example_predict_builder>> builders;
-
     std::vector<std::unique_ptr<ValueUpdater::IPeeker>> peekers;
     peekers.reserve(inputToHandle.size());
     auto vw_example = std::make_shared<::safe_example_predict>();
@@ -308,15 +304,7 @@ rt::expected<std::shared_ptr<inference::ValueUpdater>> Model::CreateValueUpdater
         if (foundInputType->second != foundInputHandle->second->Type())
             return inference::make_feature_unexpected(inference::feature_errc::type_mismatch);
 
-        std::shared_ptr<vw_slim::example_predict_builder> builder;
-        auto foundBuilder = builders.find(entry.Namespace);
-        if (foundBuilder == builders.end()) {
-            builder =
-                std::make_shared<vw_slim::example_predict_builder>(vw_example.get(), (char*)entry.Namespace.c_str());
-            builders.emplace(entry.Namespace, builder);
-        } else
-            builder = foundBuilder->second;
-        auto peeker = ValueUpdater::CreatePeeker(entry, builder, foundInputHandle->second);
+        auto peeker = ValueUpdater::CreatePeeker(entry, foundInputHandle->second);
         peekers.push_back(std::move(peeker));
     }
 
