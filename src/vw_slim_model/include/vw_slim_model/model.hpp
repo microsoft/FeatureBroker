@@ -11,6 +11,7 @@
 #include <vector>
 #include <vw_common/actions.hpp>
 #include <vw_common/schema_builder.hpp>
+#include <vw_slim_model/output_task.hpp>
 
 #include "vw_slim_model_export.h"
 
@@ -19,11 +20,8 @@ namespace resonance_vw {
 class Model : public inference::Model {
    public:
     VW_SLIM_MODEL_EXPORT static rt::expected<std::shared_ptr<Model>> Load(SchemaBuilder const& schemaBuilder,
-                                                                          std::vector<char> const& modelBytes);
-
-    VW_SLIM_MODEL_EXPORT static rt::expected<std::shared_ptr<Model>> Load(SchemaBuilder const& schemaBuilder,
-                                                                          Actions const& actions,
-                                                                          std::vector<char> const& modelBytes);
+                                                                          std::shared_ptr<OutputTask> task,
+                                                                          const void* modelData, size_t modelSize);
 
     VW_SLIM_MODEL_EXPORT ~Model() override;
     VW_SLIM_MODEL_EXPORT std::unordered_map<std::string, inference::TypeDescriptor> const& Inputs() const override;
@@ -34,15 +32,15 @@ class Model : public inference::Model {
         std::map<std::string, std::shared_ptr<inference::IHandle>> const& inputToHandle,
         std::map<std::string, std::shared_ptr<inference::InputPipe>> const& outputToPipe,
         std::function<void()> outOfBandNotifier) const override;
-    
+
     class State;
+
    private:
     std::shared_ptr<State> m_state;
 
-    Model(SchemaBuilder const& schemaBuilder, std::shared_ptr<void> vwPredict);
+    Model(SchemaBuilder const& schemaBuilder, std::shared_ptr<OutputTask> task, std::shared_ptr<void> vwPredict);
 
     std::unordered_map<std::string, inference::TypeDescriptor> m_inputs;
-    std::unordered_map<std::string, inference::TypeDescriptor> m_outputs;
     std::vector<std::string> m_input_names;
 };
-}  // namespace vw_slim_model
+}  // namespace resonance_vw

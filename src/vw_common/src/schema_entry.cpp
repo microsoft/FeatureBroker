@@ -14,7 +14,7 @@ SchemaEntry::SchemaEntry(SchemaEntry const& copy) noexcept
 SchemaEntry::SchemaEntry(std::string const& inputName, std::string const& ns, const SchemaType type,
                          const std::size_t index)
     : InputName(inputName), Namespace(ns), Type(type), Feature({}), Index(index) {
-    assert(type == SchemaType::FloatIndex || type == SchemaType::FloatsIndex);
+    assert(type == SchemaType::FloatIndex || type == SchemaType::FloatsIndex || type == SchemaType::IntIndex);
 }
 
 SchemaEntry::SchemaEntry(std::string const& inputName, std::string const& ns, const SchemaType type,
