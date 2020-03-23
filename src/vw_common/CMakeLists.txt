@@ -33,6 +33,8 @@ target_include_directories(${LIB_NAME} PUBLIC
 set_target_properties(${LIB_NAME} PROPERTIES
 	LINKER_LANGUAGE CXX
 	FOLDER "Library")
+set_target_properties(${LIB_NAME} PROPERTIES
+    POSITION_INDEPENDENT_CODE TRUE)
 
 target_compile_definitions(${LIB_NAME} PUBLIC VW_STATIC_DEFINE)
 
