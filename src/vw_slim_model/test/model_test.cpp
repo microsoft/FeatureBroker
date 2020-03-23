@@ -8,7 +8,6 @@
 #include <vw_common/schema_builder.hpp>
 #include <vw_slim_model/model.hpp>
 
-#include "data.h"
 #include "env.hpp"
 
 namespace {
