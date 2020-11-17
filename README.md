@@ -44,12 +44,15 @@ directory `build.d` the solution file `Resonance.sln`.
 
 # Example
 
-The following example is adapted from the `RunMatrixMultiply` test of the ONNX
-model support. This is one of two built-in implementations of
-`inference::Model`. ONNX models contain within themselves a description of
-their input and output schemas, including their types. This example is
-structured more for simplicity of illustrating the key structures, rather
-complete coverage.
+The following example is adapted from our `RunMatrixMultiply` test of our ONNX
+model support. As the name suggests, this is a test of a model with a single
+[ONNX MatMul operator][onnxMatmul] over two inputs. This class is one of two
+built-in implementations of `inference::Model`. ONNX models contain within
+themselves a description of their input and output schemas, including their
+types. This example is structured more for simplicity of illustrating the key
+structures, rather complete coverage.
+
+[onnxMatmul]: https://github.com/onnx/onnx/blob/master/docs/Operators.md#MatMul
 
 First, we start with a pre-amble where we simply load the model.
 
@@ -87,12 +90,14 @@ auto output = fb.BindOutput<Tensor<double>>("C:0").value_or(nullptr);
 
 In this particular section we create the `FeatureBroker` *and* associate it
 with a model in the first step. The inputs and outputs are bound, fed, and
-consumed in all the same function so it is simplest to do things that way, but
-in other scenarios it is often common to create a feature broker without any
-model at all, bind inputs to that, and then later on the actual inferencing
-component `.Fork`s another feature broker as a "child" of that feature broker,
-and binds an input. But in this simple example we are simply doing everything
-all at once.
+consumed in all the same function so it is simplest to do things that way.
+
+In other scenarios, especially when multiple models are being used for
+inference, it is often common to create a feature broker without any model at
+all, bind inputs to that, and then later on the actual inferencing component
+`.Fork`s another feature broker as a "child" of that feature broker, and binds
+an input. But in this simple example we are simply doing everything all at
+once.
 
 Note again the usage of `tl::expected` for both the input and output pipe
 bindings, since bindings can fail due to a variety of factors. (But in this
